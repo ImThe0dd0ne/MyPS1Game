@@ -1,5 +1,4 @@
 using UnityEngine;
-
 [RequireComponent(typeof(CharacterController))]
 public class ThirdPersonPlayer : MonoBehaviour
 {
@@ -8,11 +7,9 @@ public class ThirdPersonPlayer : MonoBehaviour
     public float sprintSpeed = 10f;
     public float gravity = -9.81f;
     public KeyCode sprintKey = KeyCode.LeftShift;
-
     [Header("References")]
     public Transform camPivot;
     public Animator animator;
-
     private CharacterController controller;
     private Vector3 velocity;
     private float currentSpeed;
@@ -39,11 +36,9 @@ public class ThirdPersonPlayer : MonoBehaviour
         Vector3 camForward = camPivot.forward;
         camForward.y = 0f;
         camForward.Normalize();
-
         Vector3 camRight = camPivot.right;
         camRight.y = 0f;
         camRight.Normalize();
-
         Vector3 move = camForward * v + camRight * h;
 
         // Sprint condition: MUST be pressing shift AND moving
@@ -90,8 +85,7 @@ public class ThirdPersonPlayer : MonoBehaviour
             animator.SetFloat("Speed", inputMagnitude * animationSpeed);
             animator.SetBool("Sprint", isSprinting);
 
-            // Debug: Remove after testing
-            Debug.Log($"Input: {inputMagnitude}, Sprinting: {isSprinting}, MoveSpeed: {currentSpeed}");
+            // Debug line removed - was spamming console
         }
     }
 }
