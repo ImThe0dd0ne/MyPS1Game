@@ -4121,7 +4121,15 @@ PrefabInstance:
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8621575989863660144, guid: f3f26804650d6ff4bbb724bb568ae6de, type: 3}
+      propertyPath: m_Controller
+      value: 
+      objectReference: {fileID: 9100000, guid: 49ebf32196cb135438df2b0b5ddbeace, type: 2}
+    - target: {fileID: 8621575989863660144, guid: f3f26804650d6ff4bbb724bb568ae6de, type: 3}
       propertyPath: m_CullingMode
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8621575989863660144, guid: f3f26804650d6ff4bbb724bb568ae6de, type: 3}
+      propertyPath: m_ApplyRootMotion
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8630593789039746440, guid: f3f26804650d6ff4bbb724bb568ae6de, type: 3}
@@ -5622,16 +5630,14 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 256
   health: 0
-  walkPoint: {x: 0, y: 0, z: 0}
-  walkPointRange: 5
+  walkPointRange: 10
+  sightRange: 20
+  attackRange: 2.5
   timeBetweenAttacks: 0.5
   projectile: {fileID: 0}
   attackPoint: {fileID: 0}
-  sightRange: 20
-  attackRange: 12
-  playerInSightRange: 0
-  playerInAttackRange: 0
   animator: {fileID: 1452730754}
+  showDebugLogs: 0
 --- !u!195 &1452730753
 NavMeshAgent:
   m_ObjectHideFlags: 0
