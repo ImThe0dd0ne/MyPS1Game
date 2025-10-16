@@ -4974,6 +4974,9 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 17249750}
     m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6655254804098668720, guid: 0fdc128589ef63940923f200bad7a1be, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2146339627}
     - targetCorrespondingSourceObject: {fileID: 5663413142203304823, guid: 0fdc128589ef63940923f200bad7a1be, type: 3}
       insertIndex: -1
       addedObject: {fileID: 901372970}
@@ -5390,7 +5393,13 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5096797749881093665, guid: c7349441bb611af45ad4757004d4542b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1743404748}
+    - targetCorrespondingSourceObject: {fileID: 5096797749881093665, guid: c7349441bb611af45ad4757004d4542b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1743404747}
   m_SourcePrefab: {fileID: 100100000, guid: c7349441bb611af45ad4757004d4542b, type: 3}
 --- !u!1 &1191319563
 GameObject:
@@ -5772,6 +5781,46 @@ Material:
     m_Colors: []
   m_BuildTextureStacks: []
   m_AllowLocking: 1
+--- !u!1 &1743404743 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5096797749881093665, guid: c7349441bb611af45ad4757004d4542b, type: 3}
+  m_PrefabInstance: {fileID: 1116559831}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1743404747
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1743404743}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 89f4fddddccc39649b948b828083c9ed, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  damage: 25
+  isAttacking: 0
+--- !u!65 &1743404748
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1743404743}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.3, y: 1.599078, z: 0.09228185}
+  m_Center: {x: 0.000089788635, y: 0.4612405, z: 0.00014760104}
 --- !u!1 &2105938162 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 8939127941769683116, guid: d553becab467d294ba3ca01ce86eeee6, type: 3}
@@ -5872,6 +5921,33 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2125022876}
   m_CullTransparentMesh: 1
+--- !u!1 &2146339620 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6655254804098668720, guid: 0fdc128589ef63940923f200bad7a1be, type: 3}
+  m_PrefabInstance: {fileID: 581305196}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &2146339627
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2146339620}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 335e25007bf000949ae77bdca66d7eac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  attackDamage: 25
+  attackRange: 2
+  attackCooldown: 0.5
+  enemyLayer:
+    serializedVersion: 2
+    m_Bits: 512
+  swordTransform: {fileID: 17249750}
+  attackPoint: {fileID: 0}
+  animator: {fileID: 0}
+  showDebugGizmos: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
