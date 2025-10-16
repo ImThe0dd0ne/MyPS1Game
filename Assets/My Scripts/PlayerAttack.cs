@@ -63,7 +63,7 @@ public class PlayerAttack : MonoBehaviour
         }
 
         // Wait a bit for animation to reach the swing moment
-        yield return new WaitForSeconds(0.2f);
+        yield return new WaitForSeconds(1f);
 
         // Detect enemies in range
         DetectAndDamageEnemies();

@@ -158,6 +158,18 @@ public class EnemyAI : MonoBehaviour
         {
             if (animator) animator.SetTrigger("Attack");
 
+            // Damaging the player
+
+            PlayerHealth playerhealth = player.GetComponent<PlayerHealth>();
+            if (playerhealth != null)
+            {
+                playerhealth.TakeDamage(20);
+                if (showDebugLogs)
+                {
+                    Debug.Log("Goblin hit player for 20 damage!");
+                }
+            }
+
             if (projectile && attackPoint)
             {
                 Rigidbody rb = Instantiate(projectile, attackPoint.position, attackPoint.rotation).GetComponent<Rigidbody>();
