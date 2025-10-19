@@ -1,17 +1,15 @@
 using UnityEngine;
 using System.Collections;
-public Transform respawnPoint;
 
 public class PlayerHealth : MonoBehaviour
 {
     public int maxHealth = 100;
     private int currentHealth;
 
-    // ADD THESE VARIABLES
     private bool isDead = false;
     public AudioClip deathSound;
     private AudioSource audioSource;
-    public Transform respawnPoint; // Drag your respawn point here
+    public Transform respawnPoint;
     public float respawnDelay = 3f;
 
     void Start()
@@ -45,6 +43,8 @@ public class PlayerHealth : MonoBehaviour
 
     void Die()
     {
+        if (isDead) return; // Prevent multiple death calls
+
         isDead = true;
         Debug.Log("Player has died!");
 
@@ -56,24 +56,30 @@ public class PlayerHealth : MonoBehaviour
         }
 
         // Play death sound
+        Debug.Log($"Trying to play death sound... audioSource={audioSource}, deathSound={(deathSound ? deathSound.name : "None")}");
+
         if (audioSource && deathSound)
         {
             audioSource.PlayOneShot(deathSound);
+            Debug.Log("PlayOneShot called!");
+        }
+        else
+        {
+            Debug.LogWarning("❌ Could not play death sound — missing AudioSource or AudioClip.");
         }
 
-        // Disable player controls
-        var controller = GetComponent<CharacterController>();
-        if (controller) controller.enabled = false;
 
-        // Disable attack script
+        // Disable attack script immediately
         var playerAttack = GetComponent<PlayerAttack>();
         if (playerAttack) playerAttack.enabled = false;
+
+        // Disable movement (but NOT CharacterController yet)
+        // If you have a movement script, disable it here
 
         // Respawn after delay
         StartCoroutine(RespawnAfterDelay());
     }
 
-    // ADD THIS METHOD
     private IEnumerator RespawnAfterDelay()
     {
         Debug.Log($"Respawning in {respawnDelay} seconds...");
@@ -82,36 +88,72 @@ public class PlayerHealth : MonoBehaviour
         Respawn();
     }
 
-    // ADD THIS METHOD
     private void Respawn()
     {
-        Debug.Log("Player respawned!");
+        Debug.Log("Player respawning...");
 
-        // Reset health
+        // Disable CharacterController FIRST
+        var controller = GetComponent<CharacterController>();
+        bool hadController = false;
+        if (controller != null)
+        {
+            controller.enabled = false;
+            hadController = true;
+        }
+
+        // Find and move to respawn point
+        GameObject respawnObj = GameObject.Find("RespawnPoint");
+        if (respawnObj != null)
+        {
+            transform.position = respawnObj.transform.position;
+            transform.rotation = respawnObj.transform.rotation;
+            Debug.Log("Respawned at RespawnPoint: " + respawnObj.transform.position);
+        }
+        else
+        {
+            transform.position = new Vector3(0, 1, 0);
+            transform.rotation = Quaternion.identity;
+            Debug.Log("Respawned at default position (0, 1, 0)");
+        }
+
+        // Reset health and state
         currentHealth = maxHealth;
         isDead = false;
 
-        // Move to respawn point
-        if (respawnPoint != null)
+        // Re-enable CharacterController
+        if (hadController && controller != null)
         {
-            transform.position = respawnPoint.position;
-            transform.rotation = respawnPoint.rotation;
+            controller.enabled = true;
         }
 
         // Reset animator
         Animator playerAnimator = GetComponent<Animator>();
         if (playerAnimator != null)
         {
-            playerAnimator.SetFloat("Speed", 0f);
             playerAnimator.Rebind();
+            playerAnimator.Update(0f);
+            playerAnimator.SetFloat("Speed", 0f);
         }
-
-        // Re-enable controls
-        var controller = GetComponent<CharacterController>();
-        if (controller) controller.enabled = true;
 
         // Re-enable attack
         var playerAttack = GetComponent<PlayerAttack>();
         if (playerAttack) playerAttack.enabled = true;
+
+        Debug.Log("Respawn complete!");
+    }
+
+    void Update()
+    {
+        // Press K to test death animation
+        if (Input.GetKeyDown(KeyCode.K))
+        {
+            Animator playerAnimator = GetComponent<Animator>();
+            if (playerAnimator != null)
+            {
+                playerAnimator.SetFloat("Speed", 0f);
+                playerAnimator.SetTrigger("Die");
+                Debug.Log("Manual death test!");
+            }
+        }
     }
 }
