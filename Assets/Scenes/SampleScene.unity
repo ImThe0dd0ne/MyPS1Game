@@ -5686,7 +5686,7 @@ MonoBehaviour:
   detectionRadius: 15
   attackRange: 4
   walkSpeed: 2
-  runSpeed: 30
+  runSpeed: 8
   wanderRadius: 10
   minWanderTime: 3
   maxWanderTime: 8

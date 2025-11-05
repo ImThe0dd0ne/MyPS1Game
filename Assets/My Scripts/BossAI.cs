@@ -121,10 +121,16 @@ public class BossAI : MonoBehaviour
         if (distanceToPlayer <= detectionRadius)
         {
             currentState = AIState.Chasing;
+            agent.isStopped = true;
             animator.SetTrigger("Roar");
+            
             Debug.Log("PLAYER DETECTED! Distance: " + distanceToPlayer + " | Switching to chase mode");
             return;
         }
+
+
+
+
 
         // Continue wandering
         wanderTimer += Time.deltaTime;
@@ -235,6 +241,13 @@ public class BossAI : MonoBehaviour
         agent.isStopped = true;
         enabled = false;
     }
+
+    public void EndRoar()
+    {
+        agent.isStopped = false;
+        Debug.Log("Roar finished — resuming chase!");
+    }
+
 
     void OnDrawGizmosSelected()
     {
