@@ -1,5 +1,7 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
+using Debug = UnityEngine.Debug;
 
 public class BossAI : MonoBehaviour
 {
@@ -8,270 +10,401 @@ public class BossAI : MonoBehaviour
     public NavMeshAgent agent;
 
     [Header("Detection")]
-    public float detectionRadius = 8f;
-    public float attackRange = 4f;
+    public float detectionRadius = 10f;
+    public float attackRange = 3.5f;
 
     [Header("Movement")]
     public float walkSpeed = 2f;
     public float runSpeed = 5f;
     public float wanderRadius = 5f;
     public float minWanderTime = 3f;
-    public float maxWanderTime = 8f;
+    public float maxWanderTime = 7f;
+    public float turnSpeed = 6f;
 
     [Header("Combat")]
     public float attackCooldown = 2f;
+    public float roarDuration = 2f;
 
-    // States
-    private enum AIState { Wandering, Chasing, Attacking, Dead }
+    [Header("Jump Attack Settings")]
+    public float jumpHeight = 8f;
+    public float jumpDuration = 1.5f;
+    public float maxJumpDistance = 15f;
+    public float jumpAnticipationTime = 0.8f;
+    public float jumpAttackMinDistance = 6f;
+    [Range(0f, 1f)] public float jumpAttackChance = 0.3f; // 30% chance to jump when conditions are met
+
+    private enum AIState { Wandering, Roaring, Chasing, Attacking, Jumping, Dead }
     private AIState currentState = AIState.Wandering;
 
-    // Components
     private Animator animator;
-
-    // Wandering
     private Vector3 wanderCenter;
     private Vector3 wanderTarget;
     private float wanderTimer;
     private float currentWanderTime;
-
-    // Combat
     private float nextAttackTime;
+    private float roarTimer;
+
+    // Jump attack variables
+    private Vector3 jumpTarget;
+    private bool isJumping = false;
 
     void Start()
     {
         animator = GetComponent<Animator>();
+        if (!agent) agent = GetComponent<NavMeshAgent>();
 
-        // Get NavMeshAgent if not assigned
-        if (agent == null)
+        if (!player)
         {
-            agent = GetComponent<NavMeshAgent>();
-            if (agent == null)
+            player = GameObject.FindWithTag("Player")?.transform;
+            if (!player)
             {
-                Debug.LogError("BOSS AI: No NavMeshAgent found! Please add NavMeshAgent component.");
+                Debug.LogError("BossAI: No player found!");
+                enabled = false;
                 return;
             }
         }
 
-        // Manual player assignment check
-        if (player == null)
-        {
-            Debug.LogError("BOSS AI: No player assigned! Please drag player into Player field.");
-            return;
-        }
-
-        // Setup NavMeshAgent
         agent.speed = walkSpeed;
-        agent.stoppingDistance = attackRange - 0.5f;
-        agent.angularSpeed = 120f;
-        agent.acceleration = 8f;
+        agent.stoppingDistance = attackRange - 0.3f;
+        agent.updateRotation = false;
 
-        // Initialize wandering
         wanderCenter = transform.position;
         SetNewWanderTarget();
 
-        Debug.Log("Golem AI Started: Wandering Mode | Player: " + player.name);
-        Debug.Log("NavMeshAgent: " + agent.name + " | Speed: " + agent.speed);
+        Debug.Log("BossAI initialized and wandering.");
     }
 
     void Update()
     {
-        if (player == null)
+        if (currentState == AIState.Dead || isJumping) return;
+
+        float dist = Vector3.Distance(transform.position, player.position);
+
+        // Debug distance info (less frequent to reduce spam)
+        if (Time.frameCount % 120 == 0) // Log every 2 seconds
         {
-            Debug.LogWarning("BOSS AI: Player reference lost!");
-            return;
+            Debug.Log($"Distance to player: {dist:F1} | State: {currentState} | CanJump: {CanJumpAttack(dist)}");
         }
 
-        if (agent == null)
-        {
-            Debug.LogWarning("BOSS AI: NavMeshAgent reference lost!");
-            return;
-        }
-
-        float distanceToPlayer = Vector3.Distance(transform.position, player.position);
-
-        // Debug distance occasionally
-        if (Time.frameCount % 60 == 0)
-        {
-            Debug.Log("Distance to player: " + distanceToPlayer + " | State: " + currentState + " | Agent Speed: " + agent.velocity.magnitude);
-        }
-
-        // State Machine
         switch (currentState)
         {
             case AIState.Wandering:
-                UpdateWandering(distanceToPlayer);
+                UpdateWander(dist);
+                break;
+            case AIState.Roaring:
+                UpdateRoar(dist);
                 break;
             case AIState.Chasing:
-                UpdateChasing(distanceToPlayer);
+                UpdateChase(dist);
                 break;
             case AIState.Attacking:
-                UpdateAttacking(distanceToPlayer);
+                UpdateAttack(dist);
                 break;
-            case AIState.Dead:
+            case AIState.Jumping:
+                // handled by coroutine
                 break;
         }
 
-        // Update animator speed
         animator.SetFloat("Speed", agent.velocity.magnitude);
     }
 
-    void UpdateWandering(float distanceToPlayer)
+    // ---------------------- STATES ---------------------- //
+
+    void UpdateWander(float distance)
     {
-        // Check if player enters detection radius
-        if (distanceToPlayer <= detectionRadius)
+        if (distance <= detectionRadius)
         {
-            currentState = AIState.Chasing;
-            agent.isStopped = true;
-            animator.SetTrigger("Roar");
-            
-            Debug.Log("PLAYER DETECTED! Distance: " + distanceToPlayer + " | Switching to chase mode");
+            StartRoar();
             return;
         }
 
-
-
-
-
-        // Continue wandering
         wanderTimer += Time.deltaTime;
+        bool reached = !agent.pathPending && agent.remainingDistance <= 0.5f;
 
-        if (!agent.pathPending && agent.remainingDistance <= 0.5f || wanderTimer >= currentWanderTime)
-        {
+        if (reached || wanderTimer >= currentWanderTime)
             SetNewWanderTarget();
+
+        // Rotate toward wander direction
+        if (agent.hasPath)
+        {
+            Vector3 dir = agent.steeringTarget - transform.position;
+            dir.y = 0;
+            if (dir.sqrMagnitude > 0.01f)
+            {
+                Quaternion lookRot = Quaternion.LookRotation(dir.normalized);
+                transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, Time.deltaTime * turnSpeed);
+            }
         }
     }
 
-    void UpdateChasing(float distanceToPlayer)
+    void UpdateRoar(float distance)
     {
-        // Player left detection radius
-        if (distanceToPlayer > detectionRadius * 1.2f)
+        agent.isStopped = true;
+        agent.velocity = Vector3.zero;
+        SmoothLookAt(player.position);
+
+        roarTimer += Time.deltaTime;
+        if (roarTimer >= roarDuration)
+        {
+            currentState = AIState.Chasing;
+            agent.isStopped = false;
+            Debug.Log("Roar finished → chasing player.");
+        }
+    }
+
+    void UpdateChase(float distance)
+    {
+        if (distance > detectionRadius * 1.3f)
         {
             currentState = AIState.Wandering;
             SetNewWanderTarget();
-            Debug.Log("Player lost. Returning to wandering");
+            Debug.Log("Player lost → back to wander.");
             return;
         }
 
-        // In attack range
-        if (distanceToPlayer <= attackRange)
+        // Check for jump attack opportunity while chasing
+        if (CanJumpAttack(distance) && Time.time >= nextAttackTime && ShouldJumpAttack())
+        {
+            StartJumpAttack();
+            return;
+        }
+
+        if (distance <= attackRange)
         {
             currentState = AIState.Attacking;
             agent.isStopped = true;
             animator.SetFloat("Speed", 0);
-            Debug.Log("In attack range!");
             return;
         }
 
-        // Chase player
         agent.isStopped = false;
         agent.speed = runSpeed;
         agent.SetDestination(player.position);
-
-        // Face player
-        Vector3 lookDirection = new Vector3(player.position.x, transform.position.y, player.position.z);
-        transform.LookAt(lookDirection);
+        SmoothLookAt(player.position);
     }
 
-    void UpdateAttacking(float distanceToPlayer)
+    void UpdateAttack(float distance)
     {
-        // Player moved out of attack range
-        if (distanceToPlayer > attackRange * 1.1f)
+        SmoothLookAt(player.position);
+
+        // Check for jump attack opportunity
+        if (CanJumpAttack(distance) && Time.time >= nextAttackTime && ShouldJumpAttack())
         {
-            currentState = AIState.Chasing;
-            agent.isStopped = false;
-            Debug.Log("Player out of range, resuming chase");
+            StartJumpAttack();
             return;
         }
 
-        // Face player
-        Vector3 lookDirection = new Vector3(player.position.x, transform.position.y, player.position.z);
-        transform.LookAt(lookDirection);
-
-        // Attack if cooldown ready
-        if (Time.time >= nextAttackTime)
+        // if player got too far, resume chase
+        if (distance > attackRange * 1.5f)
         {
-            PerformAttack();
-            nextAttackTime = Time.time + attackCooldown;
+            currentState = AIState.Chasing;
+            agent.isStopped = false;
+            return;
         }
+
+        // wait for cooldown
+        if (Time.time < nextAttackTime) return;
+
+        // Normal attack
+        animator.SetTrigger("Attack");
+        nextAttackTime = Time.time + attackCooldown;
+        Debug.Log("Normal attack triggered");
     }
+
+    bool CanJumpAttack(float distance)
+    {
+        return distance >= jumpAttackMinDistance && distance <= maxJumpDistance && !isJumping;
+    }
+
+    bool ShouldJumpAttack()
+    {
+        // Random chance to jump based on jumpAttackChance
+        bool shouldJump = UnityEngine.Random.value <= jumpAttackChance;
+        if (shouldJump)
+        {
+            Debug.Log($"🎲 Jump attack rolled: {UnityEngine.Random.value:F2} <= {jumpAttackChance} = YES");
+        }
+        else
+        {
+            Debug.Log($"🎲 Jump attack rolled: {UnityEngine.Random.value:F2} <= {jumpAttackChance} = NO (normal attack)");
+        }
+        return shouldJump;
+    }
+
+    // ---------------------- JUMP ATTACK ---------------------- //
+
+    void StartJumpAttack()
+    {
+        if (isJumping) return;
+
+        Debug.Log($"🚀 STARTING JUMP ATTACK! Distance: {Vector3.Distance(transform.position, player.position):F1}");
+        currentState = AIState.Jumping;
+        StartCoroutine(JumpAttack());
+        nextAttackTime = Time.time + attackCooldown * 1.5f;
+    }
+
+    IEnumerator JumpAttack()
+    {
+        isJumping = true;
+        agent.isStopped = true;
+
+        // Use separate animation trigger for jump
+        animator.SetTrigger("JumpAttack");
+
+        // Calculate jump target with prediction
+        Vector3 playerVelocity = Vector3.zero;
+        Rigidbody playerRb = player.GetComponent<Rigidbody>();
+        if (playerRb != null)
+        {
+            playerVelocity = playerRb.linearVelocity;
+        }
+
+        // Predict where player will be
+        jumpTarget = player.position + playerVelocity * jumpAnticipationTime;
+        jumpTarget.y = transform.position.y;
+
+        // Clamp jump distance
+        float distanceToTarget = Vector3.Distance(transform.position, jumpTarget);
+        if (distanceToTarget > maxJumpDistance)
+        {
+            Vector3 direction = (jumpTarget - transform.position).normalized;
+            jumpTarget = transform.position + direction * maxJumpDistance;
+        }
+
+        Debug.Log($"🎯 Jump target calculated: {jumpTarget} | Distance: {distanceToTarget:F1}");
+
+        // Anticipation phase - boss prepares to jump
+        float anticipationElapsed = 0f;
+        Vector3 lookTarget = jumpTarget;
+
+        while (anticipationElapsed < jumpAnticipationTime)
+        {
+            anticipationElapsed += Time.deltaTime;
+            SmoothLookAt(lookTarget);
+            yield return null;
+        }
+
+        // Launch phase - disable agent and perform the jump
+        bool wasAgentEnabled = agent.enabled;
+        agent.enabled = false;
+
+        Vector3 startPos = transform.position;
+        float jumpElapsed = 0f;
+
+        Debug.Log("🚀 LAUNCHING!");
+
+        while (jumpElapsed < jumpDuration)
+        {
+            jumpElapsed += Time.deltaTime;
+            float t = jumpElapsed / jumpDuration;
+
+            // More dramatic curve using quadratic easing
+            float horizontalT = 1f - Mathf.Pow(1f - t, 2f); // Ease out
+            Vector3 horizontalPos = Vector3.Lerp(startPos, jumpTarget, horizontalT);
+
+            // Higher arc with more pronounced curve
+            float verticalT = Mathf.Sin(t * Mathf.PI);
+            horizontalPos.y += verticalT * jumpHeight;
+
+            transform.position = horizontalPos;
+
+            // Always look at the direction of movement
+            Vector3 moveDirection = (jumpTarget - startPos).normalized;
+            if (moveDirection.sqrMagnitude > 0.1f)
+            {
+                Quaternion lookRotation = Quaternion.LookRotation(moveDirection);
+                transform.rotation = Quaternion.Slerp(transform.rotation, lookRotation, Time.deltaTime * turnSpeed * 2f);
+            }
+
+            yield return null;
+        }
+
+        // Land at exact target position
+        transform.position = new Vector3(jumpTarget.x, transform.position.y, jumpTarget.z);
+
+        // Impact effects
+        Debug.Log("💥 BOSS LANDS WITH IMPACT!");
+
+        // Recovery phase
+        yield return new WaitForSeconds(0.5f);
+
+        // Re-enable navigation
+        agent.enabled = wasAgentEnabled;
+        if (agent.enabled)
+        {
+            agent.Warp(transform.position);
+            agent.isStopped = false;
+        }
+
+        // Return to chasing
+        currentState = AIState.Chasing;
+        isJumping = false;
+
+        Debug.Log("Jump attack completed!");
+    }
+
+    // ---------------------- HELPERS ---------------------- //
 
     void SetNewWanderTarget()
     {
-        Vector3 randomDirection = Random.insideUnitSphere * wanderRadius;
-        randomDirection += wanderCenter;
-        randomDirection.y = transform.position.y;
+        Vector3 randomDir = UnityEngine.Random.insideUnitSphere * wanderRadius;
+        randomDir += wanderCenter;
+        randomDir.y = transform.position.y;
 
-        NavMeshHit hit;
-        if (NavMesh.SamplePosition(randomDirection, out hit, wanderRadius, 1))
+        if (NavMesh.SamplePosition(randomDir, out NavMeshHit hit, wanderRadius, NavMesh.AllAreas))
         {
             wanderTarget = hit.position;
             agent.SetDestination(wanderTarget);
-            agent.speed = walkSpeed;
             agent.isStopped = false;
+            agent.speed = walkSpeed;
 
-            currentWanderTime = Random.Range(minWanderTime, maxWanderTime);
             wanderTimer = 0f;
-
-            Debug.Log("New wander target: " + wanderTarget);
+            currentWanderTime = UnityEngine.Random.Range(minWanderTime, maxWanderTime);
         }
     }
 
-    void PerformAttack()
+    void StartRoar()
     {
-        int attackType = Random.Range(0, 3);
-
-        switch (attackType)
-        {
-            case 0:
-            case 1:
-                animator.SetTrigger("Attack");
-                break;
-            case 2:
-                animator.SetTrigger("JumpAtta");
-                break;
-        }
-
-        Debug.Log("Boss attacking! Type: " + attackType);
+        currentState = AIState.Roaring;
+        agent.isStopped = true;
+        agent.velocity = Vector3.zero;
+        roarTimer = 0f;
+        animator.SetTrigger("Roar");
+        Debug.Log("Player detected → roaring!");
     }
+
+    void SmoothLookAt(Vector3 target)
+    {
+        Vector3 dir = target - transform.position;
+        dir.y = 0;
+        if (dir.sqrMagnitude < 0.001f) return;
+        Quaternion rot = Quaternion.LookRotation(dir.normalized);
+        transform.rotation = Quaternion.Slerp(transform.rotation, rot, Time.deltaTime * turnSpeed);
+    }
+
+    // ---------------------- Death ---------------------- //
 
     public void Die()
     {
         currentState = AIState.Dead;
-        animator.SetTrigger("Die");
         agent.isStopped = true;
+        animator.SetTrigger("Die");
         enabled = false;
     }
 
-    public void EndRoar()
-    {
-        agent.isStopped = false;
-        Debug.Log("Roar finished — resuming chase!");
-    }
-
-
     void OnDrawGizmosSelected()
     {
-        // Detection radius
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, detectionRadius);
-
-        // Attack range
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, attackRange);
 
-        // Current target line
-        if (Application.isPlaying)
-        {
-            if (currentState == AIState.Wandering)
-            {
-                Gizmos.color = Color.green;
-                Gizmos.DrawLine(transform.position, wanderTarget);
-            }
-            else if (currentState == AIState.Chasing && player != null)
-            {
-                Gizmos.color = Color.red;
-                Gizmos.DrawLine(transform.position, player.position);
-            }
-        }
+        // Draw jump range
+        Gizmos.color = Color.magenta;
+        Gizmos.DrawWireSphere(transform.position, maxJumpDistance);
+
+        // Draw jump min distance
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawWireSphere(transform.position, jumpAttackMinDistance);
     }
 }
