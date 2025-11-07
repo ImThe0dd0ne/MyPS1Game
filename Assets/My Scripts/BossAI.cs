@@ -1,6 +1,8 @@
+using System;
+using System.Collections;
+using System.Diagnostics;
 using UnityEngine;
 using UnityEngine.AI;
-using System.Collections;
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class BossAI : MonoBehaviour
@@ -19,6 +21,12 @@ public class BossAI : MonoBehaviour
     public float minJumpTravelTime = 0.35f;
     public float maxJumpTravelTime = 1.2f;
 
+    [Header("Combat")]
+    public float timeBetweenAttacks = 2f;
+    public int attackDamage = 30;
+    public GameObject projectile;      // Optional projectile
+    public Transform attackPoint;
+
     [Header("Animation")]
     public string paramSpeed = "Speed";
     public string trigSwipe = "Swipe";
@@ -30,11 +38,15 @@ public class BossAI : MonoBehaviour
     [Header("Jump Recovery")]
     public float landingRecoveryTime = 0.5f;
 
+    [Header("Debug")]
+    public bool showDebugLogs = false;
+
     private enum AIState { Chasing, JumpAttacking, Attacking, Dead }
     private AIState state = AIState.Chasing;
 
     private bool isPerformingAction = false;
     private bool isJumping = false;
+    private bool alreadyAttacked = false;
 
     void Start()
     {
@@ -66,7 +78,7 @@ public class BossAI : MonoBehaviour
 
         if (!isJumping && distance <= attackRange)
         {
-            StartCoroutine(SwipeRoutine());
+            StartCoroutine(AttackRoutine());
         }
         else if (!isJumping && distance <= jumpAttackRange)
         {
@@ -90,19 +102,11 @@ public class BossAI : MonoBehaviour
             animator.SetFloat(paramSpeed, agent.velocity.magnitude);
     }
 
-    // ----------------------- SWIPE ----------------------- //
-    IEnumerator SwipeRoutine()
+    // ----------------------- SWIPE / ATTACK ----------------------- //
+    IEnumerator AttackRoutine()
     {
         isPerformingAction = true;
         state = AIState.Attacking;
-
-        // Recheck distance
-        if (Vector3.Distance(transform.position, player.position) > attackRange)
-        {
-            state = AIState.Chasing;
-            isPerformingAction = false;
-            yield break;
-        }
 
         // Stop agent
         agent.isStopped = true;
@@ -111,6 +115,26 @@ public class BossAI : MonoBehaviour
         // Trigger animation
         if (animator != null)
             animator.SetTrigger(trigSwipe);
+
+        // Damage player
+        if (!alreadyAttacked)
+        {
+            PlayerHealth playerHealth = player.GetComponent<PlayerHealth>();
+            if (playerHealth != null)
+            {
+                playerHealth.TakeDamage(attackDamage);
+                if (showDebugLogs) Debug.Log($"Boss hit player for {attackDamage} damage!");
+            }
+
+            if (projectile && attackPoint)
+            {
+                Rigidbody rb = Instantiate(projectile, attackPoint.position, attackPoint.rotation).GetComponent<Rigidbody>();
+                rb.AddForce(transform.forward * 25f, ForceMode.Impulse);
+            }
+
+            alreadyAttacked = true;
+            Invoke(nameof(ResetAttack), timeBetweenAttacks);
+        }
 
         float swipeDuration = animator != null
             ? animator.GetCurrentAnimatorStateInfo(0).length
@@ -121,6 +145,11 @@ public class BossAI : MonoBehaviour
         agent.isStopped = false;
         state = AIState.Chasing;
         isPerformingAction = false;
+    }
+
+    private void ResetAttack()
+    {
+        alreadyAttacked = false;
     }
 
     // ----------------------- JUMP ATTACK ----------------------- //
@@ -187,16 +216,11 @@ public class BossAI : MonoBehaviour
         isPerformingAction = false;
         state = AIState.Chasing;
     }
-}
 
-// Animator extension helper
-public static class AnimatorExtensions
-{
-    public static bool HasParameter(this Animator animator, string paramName)
+    // ----------------------- DAMAGE ----------------------- //
+    public void TakeDamage(int damage)
     {
-        if (animator == null) return false;
-        foreach (var p in animator.parameters)
-            if (p.name == paramName) return true;
-        return false;
+        // You can add health logic here
+        if (showDebugLogs) Debug.Log($"Boss took {damage} damage!");
     }
 }
