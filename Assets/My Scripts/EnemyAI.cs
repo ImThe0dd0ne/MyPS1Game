@@ -147,10 +147,8 @@ public class EnemyAI : MonoBehaviour
         if (direction.sqrMagnitude > 0.01f)
         {
             Quaternion lookRot = Quaternion.LookRotation(direction);
-
             // ADD 180 DEGREES TO FIX BACKWARDS FACING
             lookRot *= Quaternion.Euler(0, 180f, 0);
-
             transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, Time.deltaTime * 10f);
         }
 
@@ -159,15 +157,11 @@ public class EnemyAI : MonoBehaviour
             if (animator) animator.SetTrigger("Attack");
 
             // Damaging the player
-
             PlayerHealth playerhealth = player.GetComponent<PlayerHealth>();
             if (playerhealth != null)
             {
                 playerhealth.TakeDamage(20);
-                if (showDebugLogs)
-                {
-                    Debug.Log("Goblin hit player for 20 damage!");
-                }
+                if (showDebugLogs) Debug.Log("Goblin hit player for 20 damage!");
             }
 
             if (projectile && attackPoint)
@@ -217,10 +211,8 @@ public class EnemyAI : MonoBehaviour
         if (direction.sqrMagnitude > 0.01f)
         {
             Quaternion lookRot = Quaternion.LookRotation(direction);
-
             // ADD 180 DEGREES TO FIX BACKWARDS FACING
             lookRot *= Quaternion.Euler(0, 180f, 0);
-
             transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, Time.deltaTime * 8f);
         }
     }
@@ -250,6 +242,7 @@ public class EnemyAI : MonoBehaviour
                 animator.SetFloat("Speed", 1f);
                 Debug.Log("Manual: Speed = 1 (Walk)");
             }
+
             if (GUI.Button(new Rect(150, 75, 120, 30), "TEST IDLE"))
             {
                 animator.SetFloat("Speed", 0f);

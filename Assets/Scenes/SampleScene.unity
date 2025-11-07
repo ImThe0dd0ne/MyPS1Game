@@ -5683,14 +5683,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   player: {fileID: 1199234104}
   agent: {fileID: 1274411598}
-  detectionRadius: 15
-  attackRange: 4
-  walkSpeed: 2
-  runSpeed: 8
-  wanderRadius: 10
-  minWanderTime: 3
-  maxWanderTime: 8
-  attackCooldown: 2
+  animator: {fileID: 1274411594}
+  runSpeed: 6
+  jumpAttackRange: 7
+  attackRange: 3.5
+  jumpHeight: 3
+  jumpSpeed: 12
+  minJumpTravelTime: 0.35
+  maxJumpTravelTime: 1.2
+  paramSpeed: Speed
+  trigSwipe: Swipe
+  trigJump: JumpAttack
+  jumpChance: 0.35
 --- !u!143 &1274411597
 CharacterController:
   m_ObjectHideFlags: 0
