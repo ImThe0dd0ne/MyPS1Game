@@ -1,8 +1,6 @@
-using System;
-using System.Collections;
-using System.Diagnostics;
 using UnityEngine;
 using UnityEngine.AI;
+using System.Collections;
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class BossAI : MonoBehaviour
@@ -73,7 +71,7 @@ public class BossAI : MonoBehaviour
         if (dir.sqrMagnitude > 0.001f)
             transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir.normalized), 8f * Time.deltaTime);
 
-        // Block all actions if performing something
+        // Stop if performing another action
         if (isPerformingAction) return;
 
         if (!isJumping && distance <= attackRange)
@@ -82,24 +80,27 @@ public class BossAI : MonoBehaviour
         }
         else if (!isJumping && distance <= jumpAttackRange)
         {
-            if (Random.value < jumpChance)
+            // ✅ Fixed ambiguous Random by qualifying with UnityEngine
+            if (UnityEngine.Random.value < jumpChance)
                 StartCoroutine(JumpAttackRoutine());
             else
-            {
-                agent.isStopped = false;
-                agent.speed = runSpeed;
-                agent.SetDestination(player.position);
-            }
+                ChasePlayer();
         }
         else
         {
-            agent.isStopped = false;
-            agent.speed = runSpeed;
-            agent.SetDestination(player.position);
+            ChasePlayer();
         }
 
         if (animator != null)
             animator.SetFloat(paramSpeed, agent.velocity.magnitude);
+    }
+
+    private void ChasePlayer()
+    {
+        agent.isStopped = false;
+        agent.speed = runSpeed;
+        if (player != null)
+            agent.SetDestination(player.position);
     }
 
     // ----------------------- SWIPE / ATTACK ----------------------- //
@@ -108,24 +109,24 @@ public class BossAI : MonoBehaviour
         isPerformingAction = true;
         state = AIState.Attacking;
 
-        // Stop agent
         agent.isStopped = true;
         agent.velocity = Vector3.zero;
 
-        // Trigger animation
         if (animator != null)
             animator.SetTrigger(trigSwipe);
 
-        // Damage player
         if (!alreadyAttacked)
         {
+            // ✅ Apply damage to player
             PlayerHealth playerHealth = player.GetComponent<PlayerHealth>();
             if (playerHealth != null)
             {
                 playerHealth.TakeDamage(attackDamage);
-                if (showDebugLogs) Debug.Log($"Boss hit player for {attackDamage} damage!");
+                if (showDebugLogs)
+                    UnityEngine.Debug.Log($"Boss hit player for {attackDamage} damage!");
             }
 
+            // Optional projectile
             if (projectile && attackPoint)
             {
                 Rigidbody rb = Instantiate(projectile, attackPoint.position, attackPoint.rotation).GetComponent<Rigidbody>();
@@ -136,7 +137,8 @@ public class BossAI : MonoBehaviour
             Invoke(nameof(ResetAttack), timeBetweenAttacks);
         }
 
-        float swipeDuration = animator != null
+        // Wait until animation completes (fallback duration if animator not set)
+        float swipeDuration = (animator != null)
             ? animator.GetCurrentAnimatorStateInfo(0).length
             : 1.2f;
 
@@ -159,11 +161,9 @@ public class BossAI : MonoBehaviour
         isPerformingAction = true;
         isJumping = true;
 
-        // Stop agent during jump
         agent.isStopped = true;
         agent.enabled = false;
 
-        // Trigger jump animation
         if (animator != null)
             animator.SetTrigger(trigJump);
 
@@ -174,22 +174,16 @@ public class BossAI : MonoBehaviour
 
         float distance = Vector3.Distance(start, target);
         float travelTime = Mathf.Clamp(distance / jumpSpeed, minJumpTravelTime, maxJumpTravelTime);
-
         float elapsed = 0f;
 
         while (elapsed < travelTime)
         {
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / travelTime);
-
-            // Vertical arc
             float height = Mathf.Sin(t * Mathf.PI) * jumpHeight;
-
-            // Horizontal lerp
             Vector3 horiz = Vector3.Lerp(start, target, t);
             transform.position = new Vector3(horiz.x, start.y + height, horiz.z);
 
-            // Face player while airborne
             Vector3 lookDir = player.position - transform.position;
             lookDir.y = 0;
             if (lookDir.sqrMagnitude > 0.001f)
@@ -201,13 +195,26 @@ public class BossAI : MonoBehaviour
             yield return null;
         }
 
-        // Snap to final position
         transform.position = new Vector3(target.x, start.y, target.z);
 
-        // Small landing recovery to prevent instant swipe
+        // 💥 Apply AoE damage on landing
+        Collider[] hits = Physics.OverlapSphere(transform.position, 4f);
+        foreach (var c in hits)
+        {
+            if (c.CompareTag("Player"))
+            {
+                PlayerHealth playerHealth = c.GetComponent<PlayerHealth>();
+                if (playerHealth != null)
+                {
+                    playerHealth.TakeDamage(attackDamage + 10);
+                    if (showDebugLogs)
+                        UnityEngine.Debug.Log($"💥 Boss jump attack hit for {attackDamage + 10} damage!");
+                }
+            }
+        }
+
         yield return new WaitForSeconds(landingRecoveryTime);
 
-        // Re-enable agent
         agent.enabled = true;
         agent.Warp(transform.position);
         agent.isStopped = false;
@@ -220,7 +227,7 @@ public class BossAI : MonoBehaviour
     // ----------------------- DAMAGE ----------------------- //
     public void TakeDamage(int damage)
     {
-        // You can add health logic here
-        if (showDebugLogs) Debug.Log($"Boss took {damage} damage!");
+        if (showDebugLogs)
+            UnityEngine.Debug.Log($"Boss took {damage} damage!");
     }
 }

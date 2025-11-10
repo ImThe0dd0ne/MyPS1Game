@@ -4698,6 +4698,10 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 319799817055433142, guid: 0fdc128589ef63940923f200bad7a1be, type: 3}
+      propertyPath: m_WarningMessage
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 319799817055433142, guid: 0fdc128589ef63940923f200bad7a1be, type: 3}
       propertyPath: m_ApplyRootMotion
       value: 1
       objectReference: {fileID: 0}
@@ -4788,6 +4792,10 @@ PrefabInstance:
     - target: {fileID: 3373651073543304235, guid: 0fdc128589ef63940923f200bad7a1be, type: 3}
       propertyPath: m_Enabled
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3373651073543304235, guid: 0fdc128589ef63940923f200bad7a1be, type: 3}
+      propertyPath: groundLayer.m_Bits
+      value: 128
       objectReference: {fileID: 0}
     - target: {fileID: 3714376747090862421, guid: 0fdc128589ef63940923f200bad7a1be, type: 3}
       propertyPath: m_Layer
@@ -5051,6 +5059,38 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4231304932635005645, guid: 0fdc128589ef63940923f200bad7a1be, type: 3}
   m_PrefabInstance: {fileID: 581305196}
   m_PrefabAsset: {fileID: 0}
+--- !u!21 &723628363
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Hidden/FogPlus
+  m_Shader: {fileID: 4800000, guid: ce6b9104de07e6f44829a653aed5c515, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _MainTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats: []
+    m_Colors: []
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0
@@ -5297,7 +5337,7 @@ MonoBehaviour:
   heightFogIntensity: 1
   useHeightFogOnSky: 0
   distanceHeightBlend: 0.5
-  material: {fileID: 1862875331}
+  material: {fileID: 723628363}
   fogShader: {fileID: 4800000, guid: ce6b9104de07e6f44829a653aed5c515, type: 3}
 --- !u!4 &901372978 stripped
 Transform:
@@ -5685,16 +5725,22 @@ MonoBehaviour:
   agent: {fileID: 1274411598}
   animator: {fileID: 1274411594}
   runSpeed: 6
-  jumpAttackRange: 7
   attackRange: 3.5
+  jumpAttackRange: 7
   jumpHeight: 3
   jumpSpeed: 12
   minJumpTravelTime: 0.35
   maxJumpTravelTime: 1.2
+  timeBetweenAttacks: 2
+  attackDamage: 30
+  projectile: {fileID: 0}
+  attackPoint: {fileID: 0}
   paramSpeed: Speed
   trigSwipe: Swipe
   trigJump: JumpAttack
   jumpChance: 0.35
+  landingRecoveryTime: 0.5
+  showDebugLogs: 0
 --- !u!143 &1274411597
 CharacterController:
   m_ObjectHideFlags: 0
@@ -5742,6 +5788,50 @@ NavMeshAgent:
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 4
+--- !u!1 &1311004187
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1311004189}
+  - component: {fileID: 1311004188}
+  m_Layer: 0
+  m_Name: TimeManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1311004188
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1311004187}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bef316d3d3e95814788d521fdb475b24, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!4 &1311004189
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1311004187}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -179.88716, y: -40.32529, z: 880.30963}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1311581220
 GameObject:
   m_ObjectHideFlags: 0
@@ -6011,6 +6101,50 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 1330520250}
   m_SourcePrefab: {fileID: 100100000, guid: 1af0fbe379063f441a355c68ef9af34e, type: 3}
+--- !u!1 &1575498471
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1575498473}
+  - component: {fileID: 1575498472}
+  m_Layer: 0
+  m_Name: CameraShake
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1575498472
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1575498471}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9cd64df5966066344b0f0d200c52b906, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!4 &1575498473
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1575498471}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -179.88716, y: -40.32529, z: 880.30963}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1743404743 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 5096797749881093665, guid: c7349441bb611af45ad4757004d4542b, type: 3}
@@ -6051,38 +6185,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.3, y: 1.599078, z: 0.09228185}
   m_Center: {x: 0.000089788635, y: 0.4612405, z: 0.00014760104}
---- !u!21 &1862875331
-Material:
-  serializedVersion: 8
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: Hidden/FogPlus
-  m_Shader: {fileID: 4800000, guid: ce6b9104de07e6f44829a653aed5c515, type: 3}
-  m_Parent: {fileID: 0}
-  m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
-  m_InvalidKeywords: []
-  m_LightmapFlags: 4
-  m_EnableInstancingVariants: 0
-  m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
-  m_LockedProperties: 
-  m_SavedProperties:
-    serializedVersion: 3
-    m_TexEnvs:
-    - _MainTex:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    m_Ints: []
-    m_Floats: []
-    m_Colors: []
-  m_BuildTextureStacks: []
-  m_AllowLocking: 1
 --- !u!1 &2105938162 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 8939127941769683116, guid: d553becab467d294ba3ca01ce86eeee6, type: 3}
@@ -6209,6 +6311,11 @@ MonoBehaviour:
   swordTransform: {fileID: 17249750}
   attackPoint: {fileID: 0}
   animator: {fileID: 0}
+  bloodParticle: {fileID: 0}
+  hitstopDuration: 0.08
+  cameraShakeIntensity: 0.2
+  cameraShakeDuration: 0.15
+  hitSound: {fileID: 0}
   showDebugGizmos: 1
 --- !u!82 &2146339634
 AudioSource:
@@ -6324,3 +6431,5 @@ SceneRoots:
   - {fileID: 180277304}
   - {fileID: 1329252714}
   - {fileID: 1103568006}
+  - {fileID: 1575498473}
+  - {fileID: 1311004189}

@@ -16,6 +16,14 @@ public class PlayerAttack : MonoBehaviour
     [Header("Animation")]
     public Animator animator;
 
+    [Header("Hit Feedback")]
+    public ParticleSystem bloodParticle; // Assign blood particle prefab
+    public float hitstopDuration = 0.08f;
+    public float cameraShakeIntensity = 0.2f;
+    public float cameraShakeDuration = 0.15f;
+    public AudioClip hitSound;
+    private AudioSource audioSource;
+
     [Header("Debug")]
     public bool showDebugGizmos = true;
 
@@ -88,12 +96,38 @@ public class PlayerAttack : MonoBehaviour
             {
                 enemyScript.TakeDamage(attackDamage);
                 Debug.Log($"Hit {enemy.name} for {attackDamage} damage!");
+
+                SpawnBloodEffect(enemy.transform.position);
+                PlayHitSound();
+
+                if (TimeManager.Instance)
+                    TimeManager.Instance.DoHitstop(hitstopDuration);
+
+                if (CameraShake.Instance)
+                        CameraShake.Instance.ShakeCamera(cameraShakeIntensity, cameraShakeDuration);
             }
         }
 
         if (hitEnemies.Length > 0)
         {
             Debug.Log($"Hit {hitEnemies.Length} enemies!");
+        }
+    }
+
+    private void SpawnBloodEffect(Vector3 position)
+    {
+        if (bloodParticle != null)
+        {
+            ParticleSystem blood = Instantiate(bloodParticle, position, Quaternion.identity);
+            Destroy(blood.gameObject, 2f);
+        }
+    }
+
+    private void PlayHitSound()
+    {
+        if (hitSound && audioSource)
+        {
+            audioSource.PlayOneShot(hitSound);
         }
     }
 
