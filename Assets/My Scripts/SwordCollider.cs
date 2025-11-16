@@ -3,8 +3,12 @@ using UnityEngine;
 public class SwordCollider : MonoBehaviour
 {
     [Header("Sword Damage")]
-    public int damage = 25;
-    [SerializeField] private bool isAttacking = false;
+    [SerializeField] private int damage = 25;
+
+    [Header("Trail Reference")]
+    [SerializeField] private SwordBladeTrail bladeTrail; // assign in inspector
+
+    private bool isAttacking = false;
 
     private void OnTriggerEnter(Collider other)
     {
@@ -14,17 +18,34 @@ public class SwordCollider : MonoBehaviour
         if (enemy != null)
         {
             enemy.TakeDamage(damage);
-            // Debug logging removed to fix the conflict
         }
     }
 
-    public void EnableDamage()
+    // Automatically called when collider becomes enabled
+    private void OnEnable()
     {
-        isAttacking = true;
+        StartSwing();
     }
 
-    public void DisableDamage()
+    // Automatically called when collider becomes disabled
+    private void OnDisable()
+    {
+        EndSwing();
+    }
+
+    private void StartSwing()
+    {
+        isAttacking = true;
+
+        if (bladeTrail != null)
+            bladeTrail.EnableTrail();
+    }
+
+    private void EndSwing()
     {
         isAttacking = false;
+
+        if (bladeTrail != null)
+            bladeTrail.DisableTrail();
     }
 }

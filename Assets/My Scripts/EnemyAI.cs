@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -22,6 +23,7 @@ public class EnemyAI : MonoBehaviour
     public float attackRange = 2.5f;
     public float timeBetweenAttacks = 2f;
     private bool alreadyAttacked;
+    public float dodgeChance = 0.2f;
 
     [Header("Projectile (Optional)")]
     public GameObject projectile;
@@ -29,6 +31,11 @@ public class EnemyAI : MonoBehaviour
 
     [Header("Animation")]
     public Animator animator;
+
+    [Header("Audio")]
+    public AudioSource audioSource;      
+    public AudioClip attackSound;         
+
 
     [Header("Debug")]
     public bool showDebugLogs = false;
@@ -54,8 +61,8 @@ public class EnemyAI : MonoBehaviour
 
         if (showDebugLogs)
         {
-            if (!player) Debug.LogError("Player not found!");
-            if (!animator) Debug.LogWarning("Animator missing!");
+            if (!player) UnityEngine.Debug.LogError("Player not found!");
+            if (!animator) UnityEngine.Debug.LogWarning("Animator missing!");
         }
     }
 
@@ -86,7 +93,7 @@ public class EnemyAI : MonoBehaviour
     private void SwitchState(State newState)
     {
         if (currentState == newState) return;
-        if (showDebugLogs) Debug.Log($"State: {currentState} → {newState}");
+        if (showDebugLogs) UnityEngine.Debug.Log($"State: {currentState} → {newState}");
         currentState = newState;
     }
 
@@ -104,7 +111,7 @@ public class EnemyAI : MonoBehaviour
             if (distance < 1f)
             {
                 walkPointSet = false;
-                if (showDebugLogs) Debug.Log("Reached patrol point");
+                if (showDebugLogs) UnityEngine.Debug.Log("Reached patrol point");
             }
         }
     }
@@ -114,16 +121,16 @@ public class EnemyAI : MonoBehaviour
         for (int i = 0; i < 10; i++)
         {
             Vector3 randomPoint = transform.position + new Vector3(
-                Random.Range(-walkPointRange, walkPointRange),
+                UnityEngine.Random.Range(-walkPointRange, walkPointRange),
                 0,
-                Random.Range(-walkPointRange, walkPointRange)
+                UnityEngine.Random.Range(-walkPointRange, walkPointRange)
             );
 
             if (NavMesh.SamplePosition(randomPoint, out NavMeshHit hit, 3f, NavMesh.AllAreas))
             {
                 walkPoint = hit.position;
                 walkPointSet = true;
-                if (showDebugLogs) Debug.Log($"New patrol point: {walkPoint}");
+                if (showDebugLogs) UnityEngine.Debug.Log($"New patrol point: {walkPoint}");
                 return;
             }
         }
@@ -141,27 +148,33 @@ public class EnemyAI : MonoBehaviour
     {
         agent.isStopped = true;
 
-        // Rotate toward player
         Vector3 direction = (player.position - transform.position).normalized;
         direction.y = 0;
         if (direction.sqrMagnitude > 0.01f)
         {
             Quaternion lookRot = Quaternion.LookRotation(direction);
-            // ADD 180 DEGREES TO FIX BACKWARDS FACING
             lookRot *= Quaternion.Euler(0, 180f, 0);
             transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, Time.deltaTime * 10f);
         }
+
+        if (animator) animator.SetTrigger("Attack");
+
+        
+        if (audioSource && attackSound)
+        {
+            audioSource.PlayOneShot(attackSound);
+        }
+
 
         if (!alreadyAttacked)
         {
             if (animator) animator.SetTrigger("Attack");
 
-            // Damaging the player
             PlayerHealth playerhealth = player.GetComponent<PlayerHealth>();
             if (playerhealth != null)
             {
                 playerhealth.TakeDamage(20);
-                if (showDebugLogs) Debug.Log("Goblin hit player for 20 damage!");
+                if (showDebugLogs) UnityEngine.Debug.Log("Goblin hit player for 20 damage!");
             }
 
             if (projectile && attackPoint)
@@ -170,10 +183,16 @@ public class EnemyAI : MonoBehaviour
                 rb.AddForce(transform.forward * 25f, ForceMode.Impulse);
             }
 
-            if (showDebugLogs) Debug.Log("Attacking!");
+            if (showDebugLogs) UnityEngine.Debug.Log("Attacking!");
 
             alreadyAttacked = true;
             Invoke(nameof(ResetAttack), timeBetweenAttacks);
+
+            if (UnityEngine.Random.value < dodgeChance)
+            {
+                Vector3 dodgeDir = (transform.position - player.position).normalized;
+                agent.Move(dodgeDir * 2f);
+            }
         }
     }
 
@@ -182,49 +201,39 @@ public class EnemyAI : MonoBehaviour
         alreadyAttacked = false;
     }
 
-    // ---------------- ANIMATION ----------------
     private void UpdateAnimation()
     {
         if (!animator) return;
 
-        // Calculate speed for Blend Tree (0 = idle, 1 = walk)
         float currentSpeed = agent.velocity.magnitude;
         float normalizedSpeed = Mathf.Clamp01(currentSpeed / agent.speed);
-
-        // ONLY SET SPEED - that's what your Blend Tree uses!
         animator.SetFloat("Speed", normalizedSpeed);
 
         if (showDebugLogs && Time.frameCount % 60 == 0)
-            Debug.Log($"Blend Tree Speed: {normalizedSpeed:F2}, Actual Speed: {currentSpeed:F2}");
+            UnityEngine.Debug.Log($"Blend Tree Speed: {normalizedSpeed:F2}, Actual Speed: {currentSpeed:F2}");
     }
 
-    // ---------------- ROTATION ----------------
     private void SmoothRotate()
     {
         if (currentState == State.Attack) return;
         if (agent.velocity.sqrMagnitude < 0.1f) return;
 
-        // Get movement direction
         Vector3 direction = agent.velocity.normalized;
 
-        // Only rotate if we have a valid direction
         if (direction.sqrMagnitude > 0.01f)
         {
             Quaternion lookRot = Quaternion.LookRotation(direction);
-            // ADD 180 DEGREES TO FIX BACKWARDS FACING
             lookRot *= Quaternion.Euler(0, 180f, 0);
             transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, Time.deltaTime * 8f);
         }
     }
 
-    // ---------------- DAMAGE ----------------
     public void TakeDamage(int damage)
     {
         health -= damage;
         if (health <= 0) Destroy(gameObject);
     }
 
-    // ---------------- DEBUG GUI ----------------
     private void OnGUI()
     {
         if (showDebugLogs && agent != null)
@@ -240,18 +249,17 @@ public class EnemyAI : MonoBehaviour
             if (GUI.Button(new Rect(150, 40, 120, 30), "TEST WALK"))
             {
                 animator.SetFloat("Speed", 1f);
-                Debug.Log("Manual: Speed = 1 (Walk)");
+                UnityEngine.Debug.Log("Manual: Speed = 1 (Walk)");
             }
 
             if (GUI.Button(new Rect(150, 75, 120, 30), "TEST IDLE"))
             {
                 animator.SetFloat("Speed", 0f);
-                Debug.Log("Manual: Speed = 0 (Idle)");
+                UnityEngine.Debug.Log("Manual: Speed = 0 (Idle)");
             }
         }
     }
 
-    // ---------------- DEBUG GIZMOS ----------------
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.red;
