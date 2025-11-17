@@ -5,9 +5,6 @@ public class SwordCollider : MonoBehaviour
     [Header("Sword Damage")]
     [SerializeField] private int damage = 25;
 
-    [Header("Trail Reference")]
-    [SerializeField] private SwordBladeTrail bladeTrail; // assign in inspector
-
     private bool isAttacking = false;
 
     private void OnTriggerEnter(Collider other)
@@ -21,31 +18,28 @@ public class SwordCollider : MonoBehaviour
         }
     }
 
-    // Automatically called when collider becomes enabled
-    private void OnEnable()
-    {
-        StartSwing();
-    }
-
-    // Automatically called when collider becomes disabled
-    private void OnDisable()
-    {
-        EndSwing();
-    }
-
-    private void StartSwing()
+    // Call this to start the attack (enable damage)
+    public void EnableDamage()
     {
         isAttacking = true;
-
-        if (bladeTrail != null)
-            bladeTrail.EnableTrail();
     }
 
-    private void EndSwing()
+    // Call this to end the attack (disable damage)
+    public void DisableDamage()
     {
         isAttacking = false;
+    }
 
-        if (bladeTrail != null)
-            bladeTrail.DisableTrail();
+    // Optional: automatically enable/disable on enable/disable
+    private void OnEnable()
+    {
+        // Uncomment if you want collider to automatically start attack
+        // EnableDamage();
+    }
+
+    private void OnDisable()
+    {
+        // Uncomment if you want collider to automatically stop attack
+        // DisableDamage();
     }
 }
