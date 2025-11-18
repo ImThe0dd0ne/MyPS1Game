@@ -45,6 +45,9 @@ public class PlayerHealth : MonoBehaviour
     {
         if (isDead) return; // Prevent multiple death calls
 
+        PlayerStats stats = GetComponent<PlayerStats>();
+        if (stats != null) stats.OnDeath();
+
         isDead = true;
         Debug.Log("Player has died!");
 

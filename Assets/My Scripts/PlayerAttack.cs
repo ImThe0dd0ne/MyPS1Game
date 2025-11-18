@@ -1,59 +1,82 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 public class PlayerAttack : MonoBehaviour
 {
     [Header("Attack Settings")]
-    public int attackDamage = 25;
-    public float attackRange = 2f;
+    public int baseDamage = 25;
+    public int[] comboDamage = new int[] { 25, 35, 60 }; // For compatibility with PlayerStats
+    public float attackSpeed = 1.5f;
     public float attackCooldown = 0.5f;
+    public float attackRange = 2.8f;
+    public float attackAngle = 90f;
     public LayerMask enemyLayer;
 
-    [Header("Sword Reference")]
-    public Transform swordTransform; // Drag your sword object here
-    public Transform attackPoint; // Empty GameObject at the tip of sword
+    [Header("Combo Settings")]
+    public float comboWindow = 1.0f;
+    public float comboDamageMultiplier = 1.3f;
+    public int maxComboCount = 3;
 
-    [Header("Animation")]
+    [Header("References")]
+    public Transform swordTransform;
+    public Transform attackPoint;
     public Animator animator;
+    public TrailRenderer swordTrail;
 
-    [Header("Hit Feedback")]
-    public ParticleSystem bloodParticle; // Assign blood particle prefab
-    public float hitstopDuration = 0.08f;
-    public float cameraShakeIntensity = 0.2f;
-    public float cameraShakeDuration = 0.15f;
-    public AudioClip hitSound;
+    [Header("Audio")]
+    public AudioClip[] whooshSounds;
+    public AudioClip[] hitSounds;
     private AudioSource audioSource;
 
-    [Header("Debug")]
-    public bool showDebugGizmos = true;
+    [Header("Visual Effects")]
+    public ParticleSystem bloodSplatter;
+    public GameObject impactEffectPrefab;
+
+    [Header("Feedback")]
+    public float hitstopDuration = 0.04f;
+    public float cameraShakeAmount = 0.15f;
+    public float knockbackForce = 4f;
 
     private bool canAttack = true;
+    private int comboCounter = 0;
+    private float comboTimer = 0f;
 
     private void Start()
     {
-        // Auto-find components if not assigned
         if (!animator) animator = GetComponent<Animator>();
+        audioSource = GetComponent<AudioSource>();
 
-        // Auto-find sword if not assigned
         if (!swordTransform)
         {
-            Transform foundSword = transform.Find("Sword");
-            if (foundSword) swordTransform = foundSword;
+            swordTransform = transform.Find("mixamorig:Hips/mixamorig:Spine/mixamorig:Spine1/mixamorig:Spine2/mixamorig:RightShoulder/mixamorig:RightArm/mixamorig:RightForeArm/mixamorig:RightHand/PP_Sword_1039");
         }
 
-        // Create attack point if it doesn't exist
         if (!attackPoint && swordTransform)
         {
             GameObject attackObj = new GameObject("AttackPoint");
             attackPoint = attackObj.transform;
             attackPoint.SetParent(swordTransform);
-            attackPoint.localPosition = new Vector3(0, 0, 0.5f); // Adjust based on sword size
+            attackPoint.localPosition = new Vector3(0, 0, 1.5f);
         }
+
+        if (swordTrail != null)
+            swordTrail.emitting = false;
     }
 
     private void Update()
     {
-        // Left Mouse Button or specific key to attack
+        // Combo timer countdown
+        if (comboTimer > 0f)
+        {
+            comboTimer -= Time.deltaTime;
+            if (comboTimer <= 0f)
+            {
+                comboCounter = 0;
+            }
+        }
+
+        // Attack input
         if (Input.GetMouseButtonDown(0) && canAttack)
         {
             StartCoroutine(PerformAttack());
@@ -64,81 +87,142 @@ public class PlayerAttack : MonoBehaviour
     {
         canAttack = false;
 
-        // Play attack animation
+        // Increment combo
+        comboCounter++;
+        if (comboCounter > maxComboCount)
+            comboCounter = 1;
+
+        comboTimer = comboWindow;
+
+        // Calculate damage based on combo
+        int currentDamage = Mathf.RoundToInt(baseDamage * Mathf.Pow(comboDamageMultiplier, comboCounter - 1));
+
+        // Trigger animation
         if (animator)
         {
-            animator.SetTrigger("Attack");
+            animator.SetTrigger("Attack1");
+            animator.speed = attackSpeed;
         }
 
-        // Wait a bit for animation to reach the swing moment
-        yield return new WaitForSeconds(1f);
+        PlayWhooshSound();
 
-        // Detect enemies in range
-        DetectAndDamageEnemies();
+        if (swordTrail != null)
+            swordTrail.emitting = true;
 
-        // Cooldown
+        // Wait for attack to hit (mid animation)
+        yield return new WaitForSeconds(0.3f / attackSpeed);
+
+        // Detect and damage enemies
+        DetectAndDamageEnemies(currentDamage);
+
+        // Wait for attack to finish
         yield return new WaitForSeconds(attackCooldown);
+
+        if (swordTrail != null)
+            swordTrail.emitting = false;
+
+        if (animator)
+            animator.speed = 1f;
+
         canAttack = true;
     }
 
-    private void DetectAndDamageEnemies()
+    private void DetectAndDamageEnemies(int damage)
     {
         if (!attackPoint) return;
 
-        // Find all enemies in attack range
-        Collider[] hitEnemies = Physics.OverlapSphere(attackPoint.position, attackRange, enemyLayer);
+        Collider[] hitColliders = Physics.OverlapSphere(attackPoint.position, attackRange, enemyLayer);
 
-        foreach (Collider enemy in hitEnemies)
+        bool hitSomething = false;
+
+        foreach (Collider col in hitColliders)
         {
-            // Check if enemy has the EnemyAI script
-            EnemyAI enemyScript = enemy.GetComponent<EnemyAI>();
-            if (enemyScript != null)
+            Vector3 dirToEnemy = (col.transform.position - transform.position).normalized;
+            float angle = Vector3.Angle(transform.forward, dirToEnemy);
+
+            if (angle > attackAngle) continue;
+
+            hitSomething = true;
+
+            EnemyAI enemy = col.GetComponent<EnemyAI>();
+            BossAI boss = col.GetComponent<BossAI>();
+
+            if (enemy != null)
             {
-                enemyScript.TakeDamage(attackDamage);
-                Debug.Log($"Hit {enemy.name} for {attackDamage} damage!");
-
-                SpawnBloodEffect(enemy.transform.position);
-                PlayHitSound();
-
-                if (TimeManager.Instance)
-                    TimeManager.Instance.DoHitstop(hitstopDuration);
-
-                if (CameraShake.Instance)
-                        CameraShake.Instance.ShakeCamera(cameraShakeIntensity, cameraShakeDuration);
+                enemy.TakeDamage(damage, dirToEnemy, knockbackForce * comboCounter);
             }
+            else if (boss != null)
+            {
+                boss.TakeDamage(damage);
+            }
+
+            SpawnHitEffects(col.transform.position + Vector3.up * 1.2f, dirToEnemy);
         }
 
-        if (hitEnemies.Length > 0)
+        if (hitSomething)
         {
-            Debug.Log($"Hit {hitEnemies.Length} enemies!");
+            ApplyHitFeedback();
         }
     }
 
-    private void SpawnBloodEffect(Vector3 position)
+    private void SpawnHitEffects(Vector3 position, Vector3 direction)
     {
-        if (bloodParticle != null)
+        if (bloodSplatter != null)
         {
-            ParticleSystem blood = Instantiate(bloodParticle, position, Quaternion.identity);
+            ParticleSystem blood = Instantiate(bloodSplatter, position, Quaternion.LookRotation(direction));
             Destroy(blood.gameObject, 2f);
+        }
+
+        if (impactEffectPrefab != null)
+        {
+            GameObject impact = Instantiate(impactEffectPrefab, position, Quaternion.identity);
+            Destroy(impact, 1f);
+        }
+
+        PlayHitSound();
+    }
+
+    private void ApplyHitFeedback()
+    {
+        if (TimeManager.Instance)
+            TimeManager.Instance.DoHitstop(hitstopDuration * comboCounter);
+
+        if (CameraShake.Instance)
+            CameraShake.Instance.ShakeCamera(cameraShakeAmount * comboCounter, 0.2f);
+    }
+
+    private void PlayWhooshSound()
+    {
+        if (whooshSounds != null && whooshSounds.Length > 0 && audioSource)
+        {
+            AudioClip whoosh = whooshSounds[Random.Range(0, whooshSounds.Length)];
+            audioSource.PlayOneShot(whoosh, 0.4f);
         }
     }
 
     private void PlayHitSound()
     {
-        if (hitSound && audioSource)
+        if (hitSounds != null && hitSounds.Length > 0 && audioSource)
         {
-            audioSource.PlayOneShot(hitSound);
+            AudioClip hit = hitSounds[Random.Range(0, hitSounds.Length)];
+            audioSource.PlayOneShot(hit, 0.7f + (comboCounter * 0.1f));
         }
     }
 
-    // Visualize attack range in Scene view
     private void OnDrawGizmosSelected()
     {
-        if (showDebugGizmos && attackPoint != null)
-        {
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(attackPoint.position, attackRange);
-        }
+        if (attackPoint == null) return;
+
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(attackPoint.position, attackRange);
+
+        Gizmos.color = Color.yellow;
+        Vector3 forward = transform.forward * attackRange;
+        Vector3 rightBound = Quaternion.Euler(0, attackAngle, 0) * forward;
+        Vector3 leftBound = Quaternion.Euler(0, -attackAngle, 0) * forward;
+
+        Gizmos.DrawRay(transform.position, rightBound);
+        Gizmos.DrawRay(transform.position, leftBound);
+        Gizmos.DrawRay(transform.position, forward);
     }
 }
-

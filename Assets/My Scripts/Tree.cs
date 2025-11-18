@@ -3,8 +3,8 @@ using UnityEngine;
 public class TreeRotationFixer : MonoBehaviour
 {
     [Header("Tree Settings")]
-    public string treeTag = "Tree"; // Set this tag on your trees
-    public Vector3 correctRotation = Vector3.zero; // The rotation you want
+    public string treeTag = "Tree";
+    public Vector3 correctRotation = Vector3.zero;
 
     [Header("Debug")]
     public bool showDebugInfo = true;
@@ -17,7 +17,6 @@ public class TreeRotationFixer : MonoBehaviour
     [ContextMenu("Fix Tree Rotations")]
     public void FixAllTreeRotations()
     {
-        // Find all objects with the tree tag
         GameObject[] trees = GameObject.FindGameObjectsWithTag(treeTag);
 
         if (trees.Length == 0)
@@ -30,12 +29,8 @@ public class TreeRotationFixer : MonoBehaviour
 
         foreach (GameObject tree in trees)
         {
-            // Store original rotation for debug
             Vector3 originalRotation = tree.transform.eulerAngles;
-
-            // Apply correct rotation
             tree.transform.eulerAngles = correctRotation;
-
             fixedCount++;
 
             if (showDebugInfo)
@@ -47,13 +42,11 @@ public class TreeRotationFixer : MonoBehaviour
         Debug.Log($"Fixed rotation for {fixedCount} trees");
     }
 
-    // Alternative method: Fix trees by name pattern
     [ContextMenu("Fix Trees By Name")]
     public void FixTreesByName()
     {
-        string treeNamePattern = "Tree"; // Change this to match your tree names
-
-        GameObject[] allObjects = FindObjectsOfType<GameObject>();
+        string treeNamePattern = "Tree";
+        GameObject[] allObjects = Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
         int fixedCount = 0;
 
         foreach (GameObject obj in allObjects)

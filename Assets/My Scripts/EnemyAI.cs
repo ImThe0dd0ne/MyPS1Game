@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.AI;
+using System.Collections;
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class EnemyAI : MonoBehaviour
@@ -8,40 +9,47 @@ public class EnemyAI : MonoBehaviour
     [Header("References")]
     public NavMeshAgent agent;
     public Transform player;
+    public Animator animator;
     public LayerMask whatIsGround, whatIsPlayer;
 
     [Header("Stats")]
+    public float maxHealth = 100f;
     public float health = 100f;
+    public int attackDamage = 15;
+    public int xpReward = 20;
 
-    [Header("Patrol Settings")]
+    [Header("Patrol")]
     public float walkPointRange = 10f;
     private Vector3 walkPoint;
     private bool walkPointSet;
 
-    [Header("Combat Settings")]
+    [Header("Combat")]
     public float sightRange = 15f;
     public float attackRange = 2.5f;
     public float timeBetweenAttacks = 2f;
+    public float dodgeChance = 0.25f;
+    public float attackWindupTime = 0.5f;
     private bool alreadyAttacked;
-    public float dodgeChance = 0.2f;
-
-    [Header("Projectile (Optional)")]
-    public GameObject projectile;
-    public Transform attackPoint;
-
-    [Header("Animation")]
-    public Animator animator;
+    private bool isStunned = false;
 
     [Header("Audio")]
-    public AudioSource audioSource;      
-    public AudioClip attackSound;         
+    public AudioSource audioSource;
+    public AudioClip attackSound;
+    public AudioClip hurtSound;
+    public AudioClip deathSound;
+    public AudioClip aggroSound;
 
+    [Header("VFX")]
+    public GameObject deathEffectPrefab;
+    public ParticleSystem bloodEffect;
 
     [Header("Debug")]
     public bool showDebugLogs = false;
 
-    private enum State { Patrol, Chase, Attack }
+    private enum State { Patrol, Chase, Attack, Stunned, Dead }
     private State currentState = State.Patrol;
+    private HitEffect hitEffect;
+    private bool hasAggroed = false;
 
     private void Awake()
     {
@@ -53,32 +61,37 @@ public class EnemyAI : MonoBehaviour
             if (playerObj) player = playerObj.transform;
         }
 
-        // Configure agent
+        hitEffect = gameObject.AddComponent<HitEffect>();
+
         agent.updateRotation = false;
-        agent.stoppingDistance = attackRange * 0.8f;
+        agent.stoppingDistance = attackRange * 0.7f;
 
         if (animator) animator.applyRootMotion = false;
 
-        if (showDebugLogs)
-        {
-            if (!player) UnityEngine.Debug.LogError("Player not found!");
-            if (!animator) UnityEngine.Debug.LogWarning("Animator missing!");
-        }
+        health = maxHealth;
     }
 
     private void Update()
     {
-        if (!player || !agent.isOnNavMesh) return;
+        if (currentState == State.Dead || !player || !agent.isOnNavMesh) return;
+
+        HubZone hubZone = FindFirstObjectByType<HubZone>();
+        if (hubZone != null && hubZone.IsPlayerInHub())
+        {
+            agent.isStopped = true;
+            if (animator) animator.SetFloat("Speed", 0f);
+            return;
+        }
+
+        if (isStunned) return;
 
         bool playerInSight = Physics.CheckSphere(transform.position, sightRange, whatIsPlayer);
         bool playerInAttack = Physics.CheckSphere(transform.position, attackRange, whatIsPlayer);
 
-        // Handle state changes
         if (!playerInSight && !playerInAttack) SwitchState(State.Patrol);
         else if (playerInSight && !playerInAttack) SwitchState(State.Chase);
         else if (playerInAttack) SwitchState(State.Attack);
 
-        // Run logic per state
         switch (currentState)
         {
             case State.Patrol: Patrol(); break;
@@ -93,11 +106,16 @@ public class EnemyAI : MonoBehaviour
     private void SwitchState(State newState)
     {
         if (currentState == newState) return;
-        if (showDebugLogs) UnityEngine.Debug.Log($"State: {currentState} → {newState}");
+
+        if (newState == State.Chase && !hasAggroed)
+        {
+            hasAggroed = true;
+            PlaySound(aggroSound);
+        }
+
         currentState = newState;
     }
 
-    // ---------------- PATROL ----------------
     private void Patrol()
     {
         if (!walkPointSet) SearchWalkPoint();
@@ -107,12 +125,8 @@ public class EnemyAI : MonoBehaviour
             agent.isStopped = false;
             agent.SetDestination(walkPoint);
 
-            float distance = Vector3.Distance(transform.position, walkPoint);
-            if (distance < 1f)
-            {
+            if (Vector3.Distance(transform.position, walkPoint) < 1f)
                 walkPointSet = false;
-                if (showDebugLogs) UnityEngine.Debug.Log("Reached patrol point");
-            }
         }
     }
 
@@ -130,133 +144,172 @@ public class EnemyAI : MonoBehaviour
             {
                 walkPoint = hit.position;
                 walkPointSet = true;
-                if (showDebugLogs) UnityEngine.Debug.Log($"New patrol point: {walkPoint}");
                 return;
             }
         }
     }
 
-    // ---------------- CHASE ----------------
     private void Chase()
     {
         agent.isStopped = false;
         agent.SetDestination(player.position);
     }
 
-    // ---------------- ATTACK ----------------
     private void Attack()
     {
         agent.isStopped = true;
 
-        Vector3 direction = (player.position - transform.position).normalized;
-        direction.y = 0;
-        if (direction.sqrMagnitude > 0.01f)
-        {
-            Quaternion lookRot = Quaternion.LookRotation(direction);
-            lookRot *= Quaternion.Euler(0, 180f, 0);
-            transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, Time.deltaTime * 10f);
-        }
-
-        if (animator) animator.SetTrigger("Attack");
-
-        
-        if (audioSource && attackSound)
-        {
-            audioSource.PlayOneShot(attackSound);
-        }
-
-
         if (!alreadyAttacked)
         {
-            if (animator) animator.SetTrigger("Attack");
-
-            PlayerHealth playerhealth = player.GetComponent<PlayerHealth>();
-            if (playerhealth != null)
-            {
-                playerhealth.TakeDamage(20);
-                if (showDebugLogs) UnityEngine.Debug.Log("Goblin hit player for 20 damage!");
-            }
-
-            if (projectile && attackPoint)
-            {
-                Rigidbody rb = Instantiate(projectile, attackPoint.position, attackPoint.rotation).GetComponent<Rigidbody>();
-                rb.AddForce(transform.forward * 25f, ForceMode.Impulse);
-            }
-
-            if (showDebugLogs) UnityEngine.Debug.Log("Attacking!");
-
-            alreadyAttacked = true;
-            Invoke(nameof(ResetAttack), timeBetweenAttacks);
-
-            if (UnityEngine.Random.value < dodgeChance)
-            {
-                Vector3 dodgeDir = (transform.position - player.position).normalized;
-                agent.Move(dodgeDir * 2f);
-            }
+            StartCoroutine(AttackRoutine());
         }
     }
 
-    private void ResetAttack()
+    private IEnumerator AttackRoutine()
     {
+        alreadyAttacked = true;
+
+        if (animator) animator.SetTrigger("Attack");
+
+        yield return new WaitForSeconds(attackWindupTime);
+
+        float distanceToPlayer = Vector3.Distance(transform.position, player.position);
+        if (distanceToPlayer <= attackRange * 1.2f)
+        {
+            PlayerHealth playerHealth = player.GetComponent<PlayerHealth>();
+            if (playerHealth != null)
+            {
+                playerHealth.TakeDamage(attackDamage);
+                PlaySound(attackSound);
+            }
+        }
+
+        if (UnityEngine.Random.value < dodgeChance)
+        {
+            Vector3 dodgeDir = UnityEngine.Random.value > 0.5f ? transform.right : -transform.right;
+            agent.Move(dodgeDir * 1.5f);
+        }
+
+        yield return new WaitForSeconds(timeBetweenAttacks - attackWindupTime);
         alreadyAttacked = false;
+    }
+
+    public void TakeDamage(int damage, Vector3 hitDirection, float knockbackForce)
+    {
+        if (currentState == State.Dead) return;
+
+        health -= damage;
+
+        if (hitEffect != null)
+            hitEffect.FlashDamage(Color.red, 0.1f);
+
+        PlaySound(hurtSound);
+
+        if (bloodEffect != null)
+        {
+            ParticleSystem blood = Instantiate(bloodEffect, transform.position + Vector3.up * 1f, Quaternion.identity);
+            Destroy(blood.gameObject, 2f);
+        }
+
+        if (health > 0)
+        {
+            StartCoroutine(ApplyKnockback(hitDirection, knockbackForce));
+        }
+        else
+        {
+            Die();
+        }
+    }
+
+    private IEnumerator ApplyKnockback(Vector3 direction, float force)
+    {
+        isStunned = true;
+        agent.isStopped = true;
+        agent.velocity = Vector3.zero;
+
+        float elapsed = 0f;
+        float duration = 0.25f;
+
+        while (elapsed < duration)
+        {
+            float curve = 1f - (elapsed / duration);
+            Vector3 knockback = direction * force * curve;
+            agent.Move(knockback * Time.deltaTime);
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        agent.isStopped = false;
+        isStunned = false;
+    }
+
+    private void Die()
+    {
+        currentState = State.Dead;
+        isStunned = true;
+
+        if (animator)
+        {
+            animator.SetTrigger("Die");
+        }
+
+        PlaySound(deathSound);
+
+        if (agent != null)
+        {
+            agent.isStopped = true;
+            agent.enabled = false;
+        }
+
+        PlayerStats playerStats = FindFirstObjectByType<PlayerStats>();
+        if (playerStats != null)
+        {
+            playerStats.GainXP(xpReward);
+        }
+
+        ArenaManager arenaManager = FindFirstObjectByType<ArenaManager>();
+        if (arenaManager != null)
+        {
+            arenaManager.OnEnemyKilled();
+        }
+
+        if (deathEffectPrefab != null)
+        {
+            GameObject effect = Instantiate(deathEffectPrefab, transform.position + Vector3.up * 0.5f, Quaternion.identity);
+            Destroy(effect, 3f);
+        }
+
+        Destroy(gameObject, 2f);
+    }
+
+    private void PlaySound(AudioClip clip)
+    {
+        if (audioSource && clip)
+        {
+            audioSource.PlayOneShot(clip);
+        }
     }
 
     private void UpdateAnimation()
     {
         if (!animator) return;
 
-        float currentSpeed = agent.velocity.magnitude;
-        float normalizedSpeed = Mathf.Clamp01(currentSpeed / agent.speed);
-        animator.SetFloat("Speed", normalizedSpeed);
-
-        if (showDebugLogs && Time.frameCount % 60 == 0)
-            UnityEngine.Debug.Log($"Blend Tree Speed: {normalizedSpeed:F2}, Actual Speed: {currentSpeed:F2}");
+        float speed = agent.velocity.magnitude / agent.speed;
+        animator.SetFloat("Speed", Mathf.Clamp01(speed));
     }
 
     private void SmoothRotate()
     {
-        if (currentState == State.Attack) return;
+        if (currentState == State.Attack || isStunned) return;
         if (agent.velocity.sqrMagnitude < 0.1f) return;
 
         Vector3 direction = agent.velocity.normalized;
-
         if (direction.sqrMagnitude > 0.01f)
         {
             Quaternion lookRot = Quaternion.LookRotation(direction);
             lookRot *= Quaternion.Euler(0, 180f, 0);
-            transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, Time.deltaTime * 8f);
-        }
-    }
-
-    public void TakeDamage(int damage)
-    {
-        health -= damage;
-        if (health <= 0) Destroy(gameObject);
-    }
-
-    private void OnGUI()
-    {
-        if (showDebugLogs && agent != null)
-        {
-            float currentSpeed = agent.velocity.magnitude;
-            float normalizedSpeed = Mathf.Clamp01(currentSpeed / agent.speed);
-
-            GUI.Box(new Rect(10, 10, 300, 100), "BLEND TREE DEBUG");
-            GUI.Label(new Rect(20, 40, 280, 20), $"Speed Parameter: {normalizedSpeed:F2}");
-            GUI.Label(new Rect(20, 60, 280, 20), $"Actual Velocity: {currentSpeed:F2}");
-            GUI.Label(new Rect(20, 80, 280, 20), $"State: {currentState}");
-
-            if (GUI.Button(new Rect(150, 40, 120, 30), "TEST WALK"))
-            {
-                animator.SetFloat("Speed", 1f);
-                UnityEngine.Debug.Log("Manual: Speed = 1 (Walk)");
-            }
-
-            if (GUI.Button(new Rect(150, 75, 120, 30), "TEST IDLE"))
-            {
-                animator.SetFloat("Speed", 0f);
-                UnityEngine.Debug.Log("Manual: Speed = 0 (Idle)");
-            }
+            transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, Time.deltaTime * 10f);
         }
     }
 

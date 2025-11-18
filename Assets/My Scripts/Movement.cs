@@ -66,6 +66,7 @@ public class ThirdPersonPlayer : MonoBehaviour
 
     void Update()
     {
+        if (isDead) return;
         // Basic ground + input processing
         GroundCheck();
         CaptureInput();

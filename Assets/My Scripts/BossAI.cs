@@ -10,19 +10,26 @@ public class BossAI : MonoBehaviour
     public NavMeshAgent agent;
     public Animator animator;
 
+    [Header("Health")]
+    public int maxHealth = 500;
+    private int currentHealth;
+
     [Header("Movement")]
     public float runSpeed = 6f;
     public float attackRange = 3.5f;
-    public float jumpAttackRange = 7f;
-    public float jumpHeight = 3f;
-    public float jumpSpeed = 12f;
-    public float minJumpTravelTime = 0.35f;
-    public float maxJumpTravelTime = 1.2f;
+    public float jumpAttackRange = 10f;
+    public float jumpHeight = 4f;
+    public float jumpSpeed = 15f;
+    public float minJumpTravelTime = 0.6f;
+    public float maxJumpTravelTime = 1.5f;
 
     [Header("Combat")]
-    public float timeBetweenAttacks = 2f;
+    public float timeBetweenAttacks = 3f;
+    public float jumpAttackCooldown = 5f;
     public int attackDamage = 30;
-    public GameObject projectile;      // Optional projectile
+    public int jumpAttackDamage = 45;
+    public float jumpAOERadius = 4f;
+    public GameObject projectile;
     public Transform attackPoint;
 
     [Header("Animation")]
@@ -30,11 +37,13 @@ public class BossAI : MonoBehaviour
     public string trigSwipe = "Swipe";
     public string trigJump = "JumpAttack";
 
-    [Header("Behavior Chance")]
-    [Range(0f, 1f)] public float jumpChance = 0.35f;
+    [Header("Behavior")]
+    [Range(0f, 1f)] public float jumpChance = 0.4f;
+    public float landingRecoveryTime = 1f;
 
-    [Header("Jump Recovery")]
-    public float landingRecoveryTime = 0.5f;
+    [Header("Rewards")]
+    public int xpReward = 200;
+    public int soulReward = 100;
 
     [Header("Debug")]
     public bool showDebugLogs = false;
@@ -43,8 +52,10 @@ public class BossAI : MonoBehaviour
     private AIState state = AIState.Chasing;
 
     private bool isPerformingAction = false;
-    private bool isJumping = false;
     private bool alreadyAttacked = false;
+    private float lastJumpTime = -999f;
+
+    private HubZone hubZone;
 
     void Start()
     {
@@ -57,34 +68,49 @@ public class BossAI : MonoBehaviour
         agent.angularSpeed = 360f;
         agent.acceleration = 20f;
         agent.autoBraking = false;
+
+        hubZone = FindFirstObjectByType<HubZone>();
+        currentHealth = maxHealth;
+
+        if (showDebugLogs)
+            Debug.Log($"Boss spawned with {maxHealth} HP");
     }
 
     void Update()
     {
         if (state == AIState.Dead || player == null) return;
 
+        if (hubZone != null && hubZone.IsPlayerInHub())
+        {
+            agent.isStopped = true;
+            if (animator != null)
+                animator.SetFloat(paramSpeed, 0f);
+            return;
+        }
+
         float distance = Vector3.Distance(transform.position, player.position);
 
-        // Always face the player
         Vector3 dir = player.position - transform.position;
         dir.y = 0;
-        if (dir.sqrMagnitude > 0.001f)
+        if (dir.sqrMagnitude > 0.001f && !isPerformingAction)
             transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir.normalized), 8f * Time.deltaTime);
 
-        // Stop if performing another action
         if (isPerformingAction) return;
 
-        if (!isJumping && distance <= attackRange)
+        if (distance <= attackRange)
         {
             StartCoroutine(AttackRoutine());
         }
-        else if (!isJumping && distance <= jumpAttackRange)
+        else if (distance <= jumpAttackRange && CanJumpAttack())
         {
-            // ✅ Fixed ambiguous Random by qualifying with UnityEngine
             if (UnityEngine.Random.value < jumpChance)
+            {
                 StartCoroutine(JumpAttackRoutine());
+            }
             else
+            {
                 ChasePlayer();
+            }
         }
         else
         {
@@ -95,6 +121,11 @@ public class BossAI : MonoBehaviour
             animator.SetFloat(paramSpeed, agent.velocity.magnitude);
     }
 
+    private bool CanJumpAttack()
+    {
+        return (Time.time - lastJumpTime) >= jumpAttackCooldown;
+    }
+
     private void ChasePlayer()
     {
         agent.isStopped = false;
@@ -103,7 +134,6 @@ public class BossAI : MonoBehaviour
             agent.SetDestination(player.position);
     }
 
-    // ----------------------- SWIPE / ATTACK ----------------------- //
     IEnumerator AttackRoutine()
     {
         isPerformingAction = true;
@@ -117,16 +147,14 @@ public class BossAI : MonoBehaviour
 
         if (!alreadyAttacked)
         {
-            // ✅ Apply damage to player
             PlayerHealth playerHealth = player.GetComponent<PlayerHealth>();
             if (playerHealth != null)
             {
                 playerHealth.TakeDamage(attackDamage);
                 if (showDebugLogs)
-                    UnityEngine.Debug.Log($"Boss hit player for {attackDamage} damage!");
+                    Debug.Log($"Boss swipe hit for {attackDamage} damage!");
             }
 
-            // Optional projectile
             if (projectile && attackPoint)
             {
                 Rigidbody rb = Instantiate(projectile, attackPoint.position, attackPoint.rotation).GetComponent<Rigidbody>();
@@ -137,7 +165,6 @@ public class BossAI : MonoBehaviour
             Invoke(nameof(ResetAttack), timeBetweenAttacks);
         }
 
-        // Wait until animation completes (fallback duration if animator not set)
         float swipeDuration = (animator != null)
             ? animator.GetCurrentAnimatorStateInfo(0).length
             : 1.2f;
@@ -154,12 +181,11 @@ public class BossAI : MonoBehaviour
         alreadyAttacked = false;
     }
 
-    // ----------------------- JUMP ATTACK ----------------------- //
     IEnumerator JumpAttackRoutine()
     {
         state = AIState.JumpAttacking;
         isPerformingAction = true;
-        isJumping = true;
+        lastJumpTime = Time.time;
 
         agent.isStopped = true;
         agent.enabled = false;
@@ -168,11 +194,17 @@ public class BossAI : MonoBehaviour
             animator.SetTrigger(trigJump);
 
         Vector3 start = transform.position;
-        Vector3 target = player.position;
+        Vector3 targetPosition = player.position;
         start.y = transform.position.y;
-        target.y = transform.position.y;
+        targetPosition.y = transform.position.y;
 
-        float distance = Vector3.Distance(start, target);
+        Vector3 directionToTarget = (targetPosition - start).normalized;
+        transform.rotation = Quaternion.LookRotation(directionToTarget);
+
+        if (showDebugLogs)
+            Debug.Log($"🦘 LEAP ATTACK! Target locked at {targetPosition}");
+
+        float distance = Vector3.Distance(start, targetPosition);
         float travelTime = Mathf.Clamp(distance / jumpSpeed, minJumpTravelTime, maxJumpTravelTime);
         float elapsed = 0f;
 
@@ -181,24 +213,15 @@ public class BossAI : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / travelTime);
             float height = Mathf.Sin(t * Mathf.PI) * jumpHeight;
-            Vector3 horiz = Vector3.Lerp(start, target, t);
+            Vector3 horiz = Vector3.Lerp(start, targetPosition, t);
             transform.position = new Vector3(horiz.x, start.y + height, horiz.z);
-
-            Vector3 lookDir = player.position - transform.position;
-            lookDir.y = 0;
-            if (lookDir.sqrMagnitude > 0.001f)
-            {
-                Quaternion targetRot = Quaternion.LookRotation(lookDir.normalized);
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, 10f * Time.deltaTime);
-            }
 
             yield return null;
         }
 
-        transform.position = new Vector3(target.x, start.y, target.z);
+        transform.position = new Vector3(targetPosition.x, start.y, targetPosition.z);
 
-        // 💥 Apply AoE damage on landing
-        Collider[] hits = Physics.OverlapSphere(transform.position, 4f);
+        Collider[] hits = Physics.OverlapSphere(transform.position, jumpAOERadius);
         foreach (var c in hits)
         {
             if (c.CompareTag("Player"))
@@ -206,9 +229,9 @@ public class BossAI : MonoBehaviour
                 PlayerHealth playerHealth = c.GetComponent<PlayerHealth>();
                 if (playerHealth != null)
                 {
-                    playerHealth.TakeDamage(attackDamage + 10);
+                    playerHealth.TakeDamage(jumpAttackDamage);
                     if (showDebugLogs)
-                        UnityEngine.Debug.Log($"💥 Boss jump attack hit for {attackDamage + 10} damage!");
+                        Debug.Log($"💥 Boss leap attack hit for {jumpAttackDamage} damage!");
                 }
             }
         }
@@ -219,15 +242,60 @@ public class BossAI : MonoBehaviour
         agent.Warp(transform.position);
         agent.isStopped = false;
 
-        isJumping = false;
         isPerformingAction = false;
         state = AIState.Chasing;
     }
 
-    // ----------------------- DAMAGE ----------------------- //
     public void TakeDamage(int damage)
     {
+        if (state == AIState.Dead) return;
+
+        currentHealth -= damage;
+
         if (showDebugLogs)
-            UnityEngine.Debug.Log($"Boss took {damage} damage!");
+            Debug.Log($"Boss took {damage} damage! Health: {currentHealth}/{maxHealth}");
+
+        if (currentHealth <= 0)
+        {
+            Die();
+        }
+    }
+
+    private void Die()
+    {
+        state = AIState.Dead;
+        isPerformingAction = true;
+        agent.isStopped = true;
+        agent.enabled = false;
+
+        if (animator != null)
+            animator.SetTrigger("Die");
+
+        Debug.Log("💀 BOSS DEFEATED!");
+
+        PlayerStats playerStats = FindFirstObjectByType<PlayerStats>();
+        if (playerStats != null)
+        {
+            playerStats.GainXP(xpReward);
+        }
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.souls += soulReward;
+        }
+
+        Destroy(gameObject, 3f);
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position, attackRange);
+
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(transform.position, jumpAttackRange);
+
+        Gizmos.color = new Color(1f, 0.5f, 0f, 0.3f);
+        Gizmos.DrawSphere(transform.position, jumpAOERadius);
     }
 }

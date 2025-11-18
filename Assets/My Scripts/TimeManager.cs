@@ -3,34 +3,43 @@ using System.Collections;
 
 public class TimeManager : MonoBehaviour
 {
-    // Singleton instance
     public static TimeManager Instance { get; private set; }
 
     private void Awake()
     {
-        // Setup singleton
-        if (Instance == null)
+        if (Instance != null && Instance != this)
         {
-            Instance = this;
-            DontDestroyOnLoad(gameObject); // Optional: keeps it between scenes
+            Destroy(gameObject);
+            return;
         }
-        else
-        {
-            Destroy(gameObject); // Destroy duplicate
-        }
+        Instance = this;
     }
 
     public void DoHitstop(float duration)
     {
-        if (!gameObject.activeInHierarchy) return;
-        StartCoroutine(HitstopRoutine(duration));
+        if (Time.timeScale == 0f) return;
+        StartCoroutine(HitstopCoroutine(duration));
     }
 
-    private IEnumerator HitstopRoutine(float t)
+    private IEnumerator HitstopCoroutine(float duration)
     {
-        float prev = Time.timeScale;
-        Time.timeScale = 0.02f;
-        yield return new WaitForSecondsRealtime(t);
-        Time.timeScale = prev;
+        float originalTimeScale = Time.timeScale;
+        Time.timeScale = 0f;
+
+        yield return new WaitForSecondsRealtime(duration);
+
+        Time.timeScale = originalTimeScale;
+    }
+
+    public void SlowMotion(float scale, float duration)
+    {
+        StartCoroutine(SlowMotionCoroutine(scale, duration));
+    }
+
+    private IEnumerator SlowMotionCoroutine(float scale, float duration)
+    {
+        Time.timeScale = scale;
+        yield return new WaitForSecondsRealtime(duration);
+        Time.timeScale = 1f;
     }
 }
