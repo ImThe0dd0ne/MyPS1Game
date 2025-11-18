@@ -1,5 +1,5 @@
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
 
 public class GameManager : MonoBehaviour
 {
@@ -41,7 +41,6 @@ public class GameManager : MonoBehaviour
             Destroy(gameObject);
             return;
         }
-
         Instance = this;
         DontDestroyOnLoad(gameObject);
     }
@@ -49,7 +48,7 @@ public class GameManager : MonoBehaviour
     public void GainXP(int amount)
     {
         currentXP += amount;
-        Debug.Log($"Gained {amount} XP. Total: {currentXP}/{xpToNextLevel}");
+        Debug.Log("XP SYSTEM: Gained " + amount + " XP. Total: " + currentXP + "/" + xpToNextLevel);
 
         while (currentXP >= xpToNextLevel)
         {
@@ -63,19 +62,24 @@ public class GameManager : MonoBehaviour
         playerLevel++;
         xpToNextLevel = Mathf.RoundToInt(xpToNextLevel * 1.2f);
 
-        Debug.Log($"LEVEL UP! Now level {playerLevel}");
+        Debug.Log("LEVEL UP SYSTEM: Now level " + playerLevel);
 
         ArenaManager arenaManager = FindFirstObjectByType<ArenaManager>();
         if (arenaManager != null)
         {
+            Debug.Log("LEVEL UP SYSTEM: Calling ShowUpgradeSelection");
             arenaManager.ShowUpgradeSelection();
+        }
+        else
+        {
+            Debug.LogError("LEVEL UP SYSTEM: ArenaManager not found!");
         }
     }
 
     public void AddTemporaryUpgrade(TemporaryUpgrade upgrade)
     {
         temporaryUpgrades.Add(upgrade);
-        Debug.Log($"Added temporary upgrade: {upgrade.upgradeName}");
+        Debug.Log("Added temporary upgrade: " + upgrade.upgradeName);
 
         PlayerStats playerStats = FindFirstObjectByType<PlayerStats>();
         if (playerStats != null)
@@ -87,19 +91,16 @@ public class GameManager : MonoBehaviour
     public void ClearTemporaryUpgrades()
     {
         temporaryUpgrades.Clear();
-        Debug.Log("Cleared all temporary upgrades (player died)");
+        Debug.Log("Cleared all temporary upgrades");
     }
 
     public void OnPlayerDeath()
     {
-        Debug.Log("Player died - returning to Hub and clearing temporary upgrades");
-
+        Debug.Log("Player died - clearing upgrades");
         ClearTemporaryUpgrades();
-
         playerLevel = 1;
         currentXP = 0;
         xpToNextLevel = 100;
-
         isInArena = false;
         currentMode = GameMode.Hub;
     }
@@ -115,13 +116,13 @@ public class GameManager : MonoBehaviour
     {
         currentMode = GameMode.Hub;
         isInArena = false;
-        Debug.Log("Exited Arena mode - returned to Hub");
+        Debug.Log("Exited Arena mode");
     }
 
     public void AddSouls(int amount)
     {
         souls += amount;
-        Debug.Log($"Gained {amount} souls. Total: {souls}");
+        Debug.Log("Gained " + amount + " souls. Total: " + souls);
     }
 
     public bool SpendSouls(int amount)
@@ -129,11 +130,10 @@ public class GameManager : MonoBehaviour
         if (souls >= amount)
         {
             souls -= amount;
-            Debug.Log($"Spent {amount} souls. Remaining: {souls}");
+            Debug.Log("Spent " + amount + " souls. Remaining: " + souls);
             return true;
         }
-
-        Debug.Log($"Not enough souls! Need {amount}, have {souls}");
+        Debug.Log("Not enough souls! Need " + amount + ", have " + souls);
         return false;
     }
 }

@@ -1,7 +1,7 @@
 using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
-using System.Collections;
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class EnemyAI : MonoBehaviour
@@ -57,7 +57,7 @@ public class EnemyAI : MonoBehaviour
         if (!animator) animator = GetComponent<Animator>();
         if (!player)
         {
-            GameObject playerObj = GameObject.FindWithTag("Player");
+            GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
             if (playerObj) player = playerObj.transform;
         }
 
@@ -262,10 +262,10 @@ public class EnemyAI : MonoBehaviour
             agent.enabled = false;
         }
 
-        PlayerStats playerStats = FindFirstObjectByType<PlayerStats>();
-        if (playerStats != null)
+        if (GameManager.Instance != null)
         {
-            playerStats.GainXP(xpReward);
+            GameManager.Instance.GainXP(xpReward);
+            Debug.Log("Enemy died - gave XP directly to GameManager");
         }
 
         ArenaManager arenaManager = FindFirstObjectByType<ArenaManager>();
