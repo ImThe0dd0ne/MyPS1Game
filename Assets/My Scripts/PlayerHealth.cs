@@ -16,6 +16,11 @@ public class PlayerHealth : MonoBehaviour
     {
         currentHealth = maxHealth;
         audioSource = GetComponent<AudioSource>();
+        
+        if (CombatUI.Instance != null)
+        {
+            CombatUI.Instance.UpdateHealth(currentHealth, maxHealth);
+        }
     }
 
     public void TakeDamage(int amount)
@@ -25,6 +30,11 @@ public class PlayerHealth : MonoBehaviour
         currentHealth -= amount;
         currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
         Debug.Log("The player took damage. Current health: " + currentHealth);
+        
+        if (CombatUI.Instance != null)
+        {
+            CombatUI.Instance.UpdateHealth(currentHealth, maxHealth);
+        }
 
         if (currentHealth <= 0)
         {
@@ -39,6 +49,11 @@ public class PlayerHealth : MonoBehaviour
         currentHealth += amount;
         currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
         Debug.Log("The player has healed. Current health: " + currentHealth);
+        
+        if (CombatUI.Instance != null)
+        {
+            CombatUI.Instance.UpdateHealth(currentHealth, maxHealth);
+        }
     }
 
     void Die()
@@ -123,13 +138,11 @@ public class PlayerHealth : MonoBehaviour
         currentHealth = maxHealth;
         isDead = false;
 
-        // Re-enable CharacterController
         if (hadController && controller != null)
         {
             controller.enabled = true;
         }
 
-        // Reset animator
         Animator playerAnimator = GetComponent<Animator>();
         if (playerAnimator != null)
         {
@@ -138,9 +151,13 @@ public class PlayerHealth : MonoBehaviour
             playerAnimator.SetFloat("Speed", 0f);
         }
 
-        // Re-enable attack
         var playerAttack = GetComponent<PlayerAttack>();
         if (playerAttack) playerAttack.enabled = true;
+        
+        if (CombatUI.Instance != null)
+        {
+            CombatUI.Instance.UpdateHealth(currentHealth, maxHealth);
+        }
 
         Debug.Log("Respawn complete!");
     }

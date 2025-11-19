@@ -50,6 +50,7 @@ public class EnemyAI : MonoBehaviour
     private State currentState = State.Patrol;
     private HitEffect hitEffect;
     private bool hasAggroed = false;
+    private EnemyHealthBar healthBar;
 
     private void Awake()
     {
@@ -62,6 +63,7 @@ public class EnemyAI : MonoBehaviour
         }
 
         hitEffect = gameObject.AddComponent<HitEffect>();
+        healthBar = gameObject.AddComponent<EnemyHealthBar>();
 
         agent.updateRotation = false;
         agent.stoppingDistance = attackRange * 0.7f;
@@ -199,6 +201,11 @@ public class EnemyAI : MonoBehaviour
         if (currentState == State.Dead) return;
 
         health -= damage;
+
+        if (healthBar != null)
+        {
+            healthBar.UpdateHealth(health, maxHealth);
+        }
 
         if (hitEffect != null)
             hitEffect.FlashDamage(Color.red, 0.1f);

@@ -111,34 +111,40 @@ public class ThirdPersonPlayer : MonoBehaviour
 
     private void Move()
     {
-        float h = Input.GetAxis("Horizontal");
-        float v = Input.GetAxis("Vertical");
+        float h = Input.GetAxisRaw("Horizontal");
+        float v = Input.GetAxisRaw("Vertical");
 
         Vector3 camForward = camPivot.forward;
         Vector3 camRight = camPivot.right;
-        camForward.y = 0f; camRight.y = 0f;
-        camForward.Normalize(); camRight.Normalize();
+        camForward.y = 0f;
+        camRight.y = 0f;
+        camForward.Normalize();
+        camRight.Normalize();
 
-        Vector3 move = camForward * v + camRight * h;
-        float mag = move.magnitude;
-        if (mag > 1f) move.Normalize();
+        // raw movement direction (WASD)
+        Vector3 moveInput = camForward * v + camRight * h;
 
-        bool sprinting = Input.GetKey(sprintKey) && mag > 0.1f;
-        float speed = sprinting ? sprintSpeed : moveSpeed;
+        // always normalize to avoid diagonal speed boost
+        if (moveInput.sqrMagnitude > 1f)
+            moveInput.Normalize();
 
-        if (move.magnitude > 0.01f)
+        // project onto ground WITHOUT restoring magnitude
+        if (moveInput.sqrMagnitude > 0.01f)
         {
-            // project move onto ground slope to keep contact with terrain
-            if (Physics.Raycast(transform.position + Vector3.up * 0.2f, Vector3.down, out RaycastHit hit, 1.0f, groundLayer))
-            {
-                move = Vector3.ProjectOnPlane(move, hit.normal).normalized * mag;
-            }
+            if (Physics.Raycast(transform.position + Vector3.up * 0.2f, Vector3.down, out RaycastHit hit, 1.5f, groundLayer))
+                moveInput = Vector3.ProjectOnPlane(moveInput, hit.normal).normalized;
 
-            Quaternion targetRot = Quaternion.LookRotation(move);
+            bool sprinting = Input.GetKey(sprintKey);
+            float speed = sprinting ? sprintSpeed : moveSpeed;
+
+            Quaternion targetRot = Quaternion.LookRotation(moveInput);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Time.deltaTime * 12f);
-            controller.Move(move * speed * Time.deltaTime);
+
+            controller.Move(moveInput * speed * Time.deltaTime);
         }
     }
+
+
 
     private void HandleJump()
     {

@@ -147,6 +147,12 @@ public class ArenaManager : MonoBehaviour
     {
         int enemiesToSpawn = Mathf.RoundToInt(enemiesPerWave * Mathf.Pow(waveScaling, currentWave - 1));
         Debug.Log($"Starting Wave {currentWave} - Spawning {enemiesToSpawn} enemies");
+        
+        if (CombatUI.Instance != null)
+        {
+            CombatUI.Instance.UpdateWave(currentWave, enemiesToSpawn);
+        }
+        
         StartCoroutine(SpawnWave(enemiesToSpawn));
     }
 
@@ -206,6 +212,11 @@ public class ArenaManager : MonoBehaviour
         enemiesAlive--;
 
         Debug.Log($"Enemy killed! {enemiesAlive} remaining in wave {currentWave}");
+        
+        if (CombatUI.Instance != null)
+        {
+            CombatUI.Instance.UpdateWave(currentWave, enemiesAlive);
+        }
 
         if (enemiesAlive <= 0 && !waitingForNextWave && arenaActive)
         {

@@ -67,48 +67,17 @@ public class SoulsLikeCamera : MonoBehaviour
         mouseY -= Input.GetAxis("Mouse Y") * verticalSpeed;
         mouseY = Mathf.Clamp(mouseY, minVerticalAngle, maxVerticalAngle);
 
-        // Smooth follow
-        Vector3 targetPosition = target.position;
-        cameraPivot.position = Vector3.SmoothDamp(cameraPivot.position, targetPosition, ref currentVelocity, smoothTime);
+        // Make pivot follow target immediately
+        cameraPivot.position = target.position;
 
         // Apply rotations
         cameraPivot.rotation = Quaternion.Euler(mouseY, mouseX, 0);
 
-        // Desired camera position
-        Vector3 desiredPosition = cameraPivot.position + cameraPivot.rotation * offset;
+        // Position camera relative to pivot with offset
+        transform.position = cameraPivot.position + cameraPivot.rotation * offset;
 
-        // Prevent camera from clipping under terrain: use SphereCast toward desired position
-        Vector3 dir = (desiredPosition - cameraPivot.position);
-        float maxDist = dir.magnitude;
-        if (maxDist > 0.001f)
-        {
-            dir.Normalize();
-            if (Physics.SphereCast(cameraPivot.position, cameraCollisionRadius, dir, out RaycastHit hit, maxDist, groundLayer))
-            {
-                // move camera to just above the hit point
-                Vector3 hitPos = hit.point + Vector3.up * cameraGroundOffset;
-                // ensure camera doesn't pop inside the pivot
-                float safeDist = Mathf.Max(0.5f, (hitPos - cameraPivot.position).magnitude - 0.1f);
-                desiredPosition = cameraPivot.position + dir * safeDist;
-                desiredPosition.y = Mathf.Max(desiredPosition.y, hit.point.y + cameraGroundOffset);
-            }
-            else
-            {
-                // still ensure we are above terrain directly under desired position
-                if (Physics.Raycast(desiredPosition + Vector3.up * 0.5f, Vector3.down, out RaycastHit downHit, 10f, groundLayer))
-                {
-                    float minY = downHit.point.y + cameraGroundOffset;
-                    desiredPosition.y = Mathf.Max(desiredPosition.y, minY);
-                }
-            }
-        }
-
-        // Place camera (no extra zoom-out)
-        transform.position = desiredPosition;
-
-        // Look slightly above player feet for better framing
-        Vector3 lookTarget = target.position + Vector3.up * 1.5f;
-        transform.LookAt(lookTarget);
+        // Look at target
+        transform.LookAt(target.position + Vector3.up * 1.5f);
     }
 
     public Vector3 GetCameraForward()

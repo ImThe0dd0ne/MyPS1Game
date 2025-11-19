@@ -56,6 +56,7 @@ public class BossAI : MonoBehaviour
     private float lastJumpTime = -999f;
 
     private HubZone hubZone;
+    private EnemyHealthBar healthBar;
 
     void Start()
     {
@@ -71,6 +72,13 @@ public class BossAI : MonoBehaviour
 
         hubZone = FindFirstObjectByType<HubZone>();
         currentHealth = maxHealth;
+        
+        healthBar = gameObject.AddComponent<EnemyHealthBar>();
+        if (healthBar != null)
+        {
+            healthBar.offset = new Vector3(0, 3.5f, 0);
+            healthBar.barSize = new Vector2(2.5f, 0.2f);
+        }
 
         if (showDebugLogs)
             Debug.Log($"Boss spawned with {maxHealth} HP");
@@ -251,6 +259,11 @@ public class BossAI : MonoBehaviour
         if (state == AIState.Dead) return;
 
         currentHealth -= damage;
+        
+        if (healthBar != null)
+        {
+            healthBar.UpdateHealth(currentHealth, maxHealth);
+        }
 
         if (showDebugLogs)
             Debug.Log($"Boss took {damage} damage! Health: {currentHealth}/{maxHealth}");

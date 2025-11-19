@@ -17,6 +17,10 @@ public class PlayerAttack : MonoBehaviour
     public float comboWindow = 1.0f;
     public float comboDamageMultiplier = 1.3f;
     public int maxComboCount = 3;
+    
+    [Header("Attack Timing - Adjust for Feel")]
+    public float hitDetectionDelay = 0.1f;
+    public float recoveryTime = 0.2f;
 
     [Header("References")]
     public Transform swordTransform;
@@ -37,6 +41,9 @@ public class PlayerAttack : MonoBehaviour
     public float hitstopDuration = 0.04f;
     public float cameraShakeAmount = 0.15f;
     public float knockbackForce = 4f;
+    public bool enableDamageNumbers = true;
+    public bool enableScreenFlash = true;
+    public bool enableHitSparks = false;
 
     private bool canAttack = true;
     private int comboCounter = 0;
@@ -94,10 +101,13 @@ public class PlayerAttack : MonoBehaviour
 
         comboTimer = comboWindow;
 
-        // Calculate damage based on combo
         int currentDamage = Mathf.RoundToInt(baseDamage * Mathf.Pow(comboDamageMultiplier, comboCounter - 1));
 
-        // Trigger animation
+        if (CombatUI.Instance != null)
+        {
+            CombatUI.Instance.ShowCombo(comboCounter);
+        }
+
         if (animator)
         {
             animator.SetTrigger("Attack1");
@@ -109,14 +119,11 @@ public class PlayerAttack : MonoBehaviour
         if (swordTrail != null)
             swordTrail.emitting = true;
 
-        // Wait for attack to hit (mid animation)
-        yield return new WaitForSeconds(0.3f / attackSpeed);
+        yield return new WaitForSeconds(hitDetectionDelay / attackSpeed);
 
-        // Detect and damage enemies
         DetectAndDamageEnemies(currentDamage);
 
-        // Wait for attack to finish
-        yield return new WaitForSeconds(attackCooldown);
+        yield return new WaitForSeconds(recoveryTime);
 
         if (swordTrail != null)
             swordTrail.emitting = false;
@@ -156,7 +163,18 @@ public class PlayerAttack : MonoBehaviour
                 boss.TakeDamage(damage);
             }
 
-            SpawnHitEffects(col.transform.position + Vector3.up * 1.2f, dirToEnemy);
+            Vector3 hitPosition = col.transform.position + Vector3.up * 1.2f;
+            SpawnHitEffects(hitPosition, dirToEnemy);
+            
+            if (enableDamageNumbers && DamageNumberSpawner.Instance != null)
+            {
+                DamageNumberSpawner.Instance.SpawnDamageNumber(hitPosition, damage, comboCounter);
+            }
+            
+            if (enableHitSparks)
+            {
+                HitSpark.Create(hitPosition, -dirToEnemy);
+            }
         }
 
         if (hitSomething)
@@ -189,6 +207,13 @@ public class PlayerAttack : MonoBehaviour
 
         if (CameraShake.Instance)
             CameraShake.Instance.ShakeCamera(cameraShakeAmount * comboCounter, 0.2f);
+        
+        if (enableScreenFlash && ScreenFlash.Instance)
+        {
+            float intensity = 0.15f + (comboCounter * 0.05f);
+            Color flashColor = new Color(1f, 1f, 1f, intensity);
+            ScreenFlash.Instance.Flash(flashColor, 0.08f);
+        }
     }
 
     private void PlayWhooshSound()
