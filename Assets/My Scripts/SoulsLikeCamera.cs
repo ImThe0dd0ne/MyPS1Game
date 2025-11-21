@@ -2,21 +2,22 @@ using UnityEngine;
 
 public class SoulsLikeCamera : MonoBehaviour
 {
-    public Transform target;          // Drag Knight here
-    public Transform cameraPivot;     // Drag CameraPivot here
+    public Transform target;
+    public Transform cameraPivot;
     public float rotationSpeed = 3f;
     public float verticalSpeed = 2f;
     public Vector3 offset = new Vector3(0, 2, -5);
 
-    // Soulslike additions
+    [Header("Angle Limits")]
     public float minVerticalAngle = -30f;
     public float maxVerticalAngle = 60f;
     public float smoothTime = 0.1f;
 
-    [Header("Ground Safety")]
-    public LayerMask groundLayer;     // assign WhatIsGround
-    public float cameraGroundOffset = 0.2f; // how far above ground the camera will stay
-    public float cameraCollisionRadius = 0.35f; // for spherecast safety
+    [Header("Collision & Occlusion")]
+    public LayerMask collisionLayers;
+    public float minDistance = 1f;
+    public float terrainHeightOffset = 1.5f;
+    public float collisionRadius = 0.3f;
 
     private float mouseX;
     private float mouseY;
@@ -47,7 +48,6 @@ public class SoulsLikeCamera : MonoBehaviour
     {
         if (target == null || cameraPivot == null) return;
 
-        // Toggle cursor lock/unlock
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             if (Cursor.lockState == CursorLockMode.Locked)
@@ -62,22 +62,47 @@ public class SoulsLikeCamera : MonoBehaviour
             }
         }
 
-        // Input rotation
         mouseX += Input.GetAxis("Mouse X") * rotationSpeed;
         mouseY -= Input.GetAxis("Mouse Y") * verticalSpeed;
         mouseY = Mathf.Clamp(mouseY, minVerticalAngle, maxVerticalAngle);
 
-        // Make pivot follow target immediately
         cameraPivot.position = target.position;
-
-        // Apply rotations
         cameraPivot.rotation = Quaternion.Euler(mouseY, mouseX, 0);
 
-        // Position camera relative to pivot with offset
-        transform.position = cameraPivot.position + cameraPivot.rotation * offset;
+        Vector3 desiredPosition = cameraPivot.position + cameraPivot.rotation * offset;
+        Vector3 finalPosition = HandleCollisions(desiredPosition);
 
-        // Look at target
+        transform.position = finalPosition;
         transform.LookAt(target.position + Vector3.up * 1.5f);
+    }
+
+    Vector3 HandleCollisions(Vector3 desiredPosition)
+    {
+        Vector3 direction = desiredPosition - cameraPivot.position;
+        float distance = direction.magnitude;
+
+        RaycastHit hit;
+        if (Physics.SphereCast(cameraPivot.position, collisionRadius, direction.normalized, out hit, distance, collisionLayers))
+        {
+            desiredPosition = hit.point - direction.normalized * collisionRadius;
+            distance = (desiredPosition - cameraPivot.position).magnitude;
+            
+            if (distance < minDistance)
+            {
+                desiredPosition = cameraPivot.position + direction.normalized * minDistance;
+            }
+        }
+
+        if (Physics.Raycast(desiredPosition, Vector3.down, out hit, 100f, collisionLayers))
+        {
+            float minHeightAboveTerrain = hit.point.y + terrainHeightOffset;
+            if (desiredPosition.y < minHeightAboveTerrain)
+            {
+                desiredPosition.y = minHeightAboveTerrain;
+            }
+        }
+
+        return desiredPosition;
     }
 
     public Vector3 GetCameraForward()

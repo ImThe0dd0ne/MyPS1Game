@@ -11483,11 +11483,12 @@ MonoBehaviour:
   minVerticalAngle: -30
   maxVerticalAngle: 60
   smoothTime: 0.1
-  groundLayer:
+  collisionLayers:
     serializedVersion: 2
-    m_Bits: 0
-  cameraGroundOffset: 0.5
-  cameraCollisionRadius: 0.4
+    m_Bits: 128
+  minDistance: 1
+  terrainHeightOffset: 1.5
+  collisionRadius: 0.3
 --- !u!114 &901372988
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -11500,12 +11501,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 07ef55d01ecd96549a31ec62b3449367, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SimpleCameraCollision
-  cameraTransform: {fileID: 901372978}
-  playerTransform: {fileID: 562541513}
-  minDistanceFromWall: 0.3
-  collisionLayers:
-    m_Bits: 0
-  smoothSpeed: 10
 --- !u!1 &989723426 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: -7955790086967878477, guid: 1af0fbe379063f441a355c68ef9af34e, type: 3}
@@ -12506,12 +12501,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 07ef55d01ecd96549a31ec62b3449367, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SimpleCameraCollision
-  cameraTransform: {fileID: 901372978}
-  playerTransform: {fileID: 562541513}
-  minDistanceFromWall: 0.3
-  collisionLayers:
-    m_Bits: 128
-  smoothSpeed: 10
 --- !u!1 &1329252713
 GameObject:
   m_ObjectHideFlags: 0
@@ -12605,6 +12594,10 @@ MonoBehaviour:
   timeBetweenWaves: 5
   enemyPrefabs:
   - {fileID: 496493413000305795, guid: ff2e9daa84f819349b18f0b1045f2162, type: 3}
+  - {fileID: 8836331672809624141, guid: 134a8012091b2ef4d96b7e237d3b6cd0, type: 3}
+  enemySpawnWeights:
+  - 1
+  - 0.8
   player: {fileID: 562541513}
   spawnRadius: 20
   minSpawnDistance: 10

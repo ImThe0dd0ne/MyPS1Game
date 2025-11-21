@@ -1,0 +1,11 @@
+{
+    "asset": "b1192ed8bad32a542a46c5ab1ea5cfe0",
+    "fileName": "019aa69d-3f39-73cb-a1ad-1da052e1e63a.pose.json",
+    "prompt": "Create an attack animation for an imp character shooting projectile fireballs.",
+    "negativePrompt": "",
+    "model": "9e46c009-67d8-4254-a3a0-32e3168247ee",
+    "modelName": "Text to Motion",
+    "customSeed": 643409447,
+    "w3CTraceId": "967c9cf77ba652d84e0de0f84aa50069",
+    "isTrimmed": false
+}

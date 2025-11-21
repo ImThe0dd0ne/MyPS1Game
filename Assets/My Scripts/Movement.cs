@@ -9,6 +9,14 @@ public class ThirdPersonPlayer : MonoBehaviour
     public float sprintSpeed = 13f;
     public float gravity = -30f;
     public KeyCode sprintKey = KeyCode.LeftShift;
+    
+    [Header("AAA Responsiveness")]
+    [Tooltip("How fast character turns (higher = snappier)")]
+    public float rotationSpeed = 18f;
+    [Tooltip("Input smoothing (lower = more responsive, 0 = instant)")]
+    public float inputSmoothTime = 0.08f;
+    [Tooltip("Animation blend speed (lower = faster transitions)")]
+    public float animationDampTime = 0.05f;
 
     [Header("Jump Settings")]
     public float jumpHeight = 2f;
@@ -39,7 +47,6 @@ public class ThirdPersonPlayer : MonoBehaviour
     public Animator animator;  // Animator - must have "Slide" state/clip
     public LayerMask groundLayer; // your WhatIsGround layer
 
-    // internals
     private CharacterController controller;
     private Vector3 velocity;
     private float jumpBufferCounter;
@@ -53,12 +60,17 @@ public class ThirdPersonPlayer : MonoBehaviour
     private float originalHeight;
     private Vector3 originalCenter;
     private Coroutine slideCoroutine;
+    private FixedCombatSystem combatSystem;
+    
+    private Vector2 currentInputVector;
+    private Vector2 smoothInputVelocity;
 
     void Start()
     {
         controller = GetComponent<CharacterController>();
         originalHeight = controller.height;
         originalCenter = controller.center;
+        combatSystem = GetComponent<FixedCombatSystem>();
 
         if (animator == null)
             UnityEngine.Debug.LogWarning("Animator not assigned on ThirdPersonPlayer.");
@@ -67,24 +79,19 @@ public class ThirdPersonPlayer : MonoBehaviour
     void Update()
     {
         if (isDead) return;
-        // Basic ground + input processing
+        
         GroundCheck();
         CaptureInput();
 
-        // If sliding, slide coroutine handles movement and gravity; still allow steering input used by slide coroutine.
         if (isSliding)
         {
-            // track whether player holds slide to keep momentum
             isSlideHeld = Input.GetKey(slideKey);
             return;
         }
 
-        // Movement + jump (normal flow)
         Move();
         HandleJump();
         ApplyGravity();
-
-        // Animation state updates for non-slide states
         UpdateAnimatorMove();
     }
 
@@ -111,8 +118,11 @@ public class ThirdPersonPlayer : MonoBehaviour
 
     private void Move()
     {
-        float h = Input.GetAxisRaw("Horizontal");
-        float v = Input.GetAxisRaw("Vertical");
+        float h = Input.GetAxis("Horizontal");
+        float v = Input.GetAxis("Vertical");
+
+        Vector2 targetInput = new Vector2(h, v);
+        currentInputVector = Vector2.SmoothDamp(currentInputVector, targetInput, ref smoothInputVelocity, inputSmoothTime);
 
         Vector3 camForward = camPivot.forward;
         Vector3 camRight = camPivot.right;
@@ -121,14 +131,11 @@ public class ThirdPersonPlayer : MonoBehaviour
         camForward.Normalize();
         camRight.Normalize();
 
-        // raw movement direction (WASD)
-        Vector3 moveInput = camForward * v + camRight * h;
+        Vector3 moveInput = camForward * currentInputVector.y + camRight * currentInputVector.x;
 
-        // always normalize to avoid diagonal speed boost
         if (moveInput.sqrMagnitude > 1f)
             moveInput.Normalize();
 
-        // project onto ground WITHOUT restoring magnitude
         if (moveInput.sqrMagnitude > 0.01f)
         {
             if (Physics.Raycast(transform.position + Vector3.up * 0.2f, Vector3.down, out RaycastHit hit, 1.5f, groundLayer))
@@ -138,7 +145,7 @@ public class ThirdPersonPlayer : MonoBehaviour
             float speed = sprinting ? sprintSpeed : moveSpeed;
 
             Quaternion targetRot = Quaternion.LookRotation(moveInput);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Time.deltaTime * 12f);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Time.deltaTime * rotationSpeed);
 
             controller.Move(moveInput * speed * Time.deltaTime);
         }
@@ -150,7 +157,6 @@ public class ThirdPersonPlayer : MonoBehaviour
     {
         if (jumpBufferCounter > 0f && isGrounded && !isJumping && !isSliding)
         {
-            // Standard physics jump velocity
             isJumping = true;
             velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
             jumpBufferCounter = 0f;
@@ -180,14 +186,13 @@ public class ThirdPersonPlayer : MonoBehaviour
     {
         if (animator == null) return;
 
-        float h = Input.GetAxisRaw("Horizontal");
-        float v = Input.GetAxisRaw("Vertical");
-        float inputMag = new Vector3(h, 0f, v).magnitude;
+        float inputMag = currentInputVector.magnitude;
         bool sprinting = Input.GetKey(sprintKey) && inputMag > 0.1f;
 
         if (!isSliding && !isJumping)
         {
-            animator.SetFloat("Speed", inputMag * (sprinting ? 2f : 1f), 0.1f, Time.deltaTime);
+            float speedValue = inputMag * (sprinting ? 2f : 1f);
+            animator.SetFloat("Speed", speedValue, animationDampTime, Time.deltaTime);
             animator.SetBool("Sprint", sprinting);
         }
 

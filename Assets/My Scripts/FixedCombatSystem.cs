@@ -6,21 +6,23 @@ public class FixedCombatSystem : MonoBehaviour
     [Header("=== COMBO SETUP ===")]
     public int maxComboCount = 3;
     public float comboWindow = 0.8f;
-    public float attackSpeed = 1.2f;
+    public float attackSpeed = 1.5f;
     
     [Header("=== DAMAGE ===")]
     public float attack1Damage = 25f;
     public float attack2Damage = 35f;
     public float attack3Damage = 50f;
     
-    [Header("=== TIMING ===")]
-    public float attack1HitDelay = 0.15f;
-    public float attack2HitDelay = 0.18f;
-    public float attack3HitDelay = 0.2f;
+    [Header("=== TIMING (Fast-Paced Action) ===")]
+    [Tooltip("Time before hit detection (minimal for instant feedback)")]
+    public float attack1HitDelay = 0.08f;
+    public float attack2HitDelay = 0.10f;
+    public float attack3HitDelay = 0.12f;
     
-    public float attack1Recovery = 0.2f;
-    public float attack2Recovery = 0.25f;
-    public float attack3Recovery = 0.3f;
+    [Tooltip("Recovery time (minimal for non-stop action)")]
+    public float attack1Recovery = 0.10f;
+    public float attack2Recovery = 0.12f;
+    public float attack3Recovery = 0.15f;
     
     [Header("=== RANGE ===")]
     public float attackRange = 2.8f;
@@ -93,7 +95,7 @@ public class FixedCombatSystem : MonoBehaviour
             {
                 PerformAttack();
             }
-            else
+            else if (!attackQueued)
             {
                 attackQueued = true;
             }

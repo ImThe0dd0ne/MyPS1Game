@@ -1,0 +1,11 @@
+{
+    "asset": "f80f3fa6b2feba34888d800ceb0106fc",
+    "fileName": "019aa69d-f5b9-763b-adb0-facbfc78f4a9.pose.json",
+    "prompt": "Create a walking animation for an imp character that moves around and chases the player like a goblin.",
+    "negativePrompt": "",
+    "model": "9e46c009-67d8-4254-a3a0-32e3168247ee",
+    "modelName": "Text to Motion",
+    "customSeed": 1187543695,
+    "w3CTraceId": "54fd35f408d67a3eb3899436eccd0a5c",
+    "isTrimmed": false
+}

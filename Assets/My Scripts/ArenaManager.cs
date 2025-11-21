@@ -10,8 +10,11 @@ public class ArenaManager : MonoBehaviour
     public float waveScaling = 1.3f;
     public float timeBetweenWaves = 5f;
 
-    [Header("Spawning")]
+    [Header("Spawning - Modular Enemy System")]
+    [Tooltip("Add all enemy prefabs here - Goblins, Imps, Spiders, etc.")]
     public GameObject[] enemyPrefabs;
+    [Tooltip("Weight for each enemy type (higher = more common). Leave empty for equal weights.")]
+    public float[] enemySpawnWeights;
     public Transform player;
     public float spawnRadius = 20f;
     public float minSpawnDistance = 10f;
@@ -174,18 +177,61 @@ public class ArenaManager : MonoBehaviour
         if (player == null || enemyPrefabs.Length == 0) return;
 
         Vector3 spawnPos = GetRandomSpawnPosition();
-
-        GameObject enemyPrefab = enemyPrefabs[Random.Range(0, enemyPrefabs.Length)];
+        GameObject enemyPrefab = GetWeightedRandomEnemy();
         GameObject enemy = Instantiate(enemyPrefab, spawnPos, Quaternion.identity);
 
         EnemyAI enemyAI = enemy.GetComponent<EnemyAI>();
+        ImpAI impAI = enemy.GetComponent<ImpAI>();
+        SpiderEnemy spiderEnemy = enemy.GetComponent<SpiderEnemy>();
+
+        float healthScale = 1f + (currentWave - 1) * 0.2f;
+
         if (enemyAI != null)
         {
             enemyAI.player = player;
-
-            float healthScale = 1f + (currentWave - 1) * 0.2f;
             enemyAI.health *= healthScale;
+            enemyAI.maxHealth *= healthScale;
         }
+        else if (impAI != null)
+        {
+            impAI.player = player;
+            impAI.health *= healthScale;
+            impAI.maxHealth *= healthScale;
+        }
+        else if (spiderEnemy != null)
+        {
+            spiderEnemy.player = player;
+            spiderEnemy.health *= healthScale;
+            spiderEnemy.maxHealth *= healthScale;
+        }
+    }
+
+    private GameObject GetWeightedRandomEnemy()
+    {
+        if (enemySpawnWeights == null || enemySpawnWeights.Length != enemyPrefabs.Length || enemySpawnWeights.Length == 0)
+        {
+            return enemyPrefabs[Random.Range(0, enemyPrefabs.Length)];
+        }
+
+        float totalWeight = 0f;
+        foreach (float weight in enemySpawnWeights)
+        {
+            totalWeight += weight;
+        }
+
+        float randomValue = Random.Range(0f, totalWeight);
+        float cumulativeWeight = 0f;
+
+        for (int i = 0; i < enemyPrefabs.Length; i++)
+        {
+            cumulativeWeight += enemySpawnWeights[i];
+            if (randomValue <= cumulativeWeight)
+            {
+                return enemyPrefabs[i];
+            }
+        }
+
+        return enemyPrefabs[enemyPrefabs.Length - 1];
     }
 
     private Vector3 GetRandomSpawnPosition()
@@ -200,11 +246,11 @@ public class ArenaManager : MonoBehaviour
 
             if (Physics.Raycast(spawnPos + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 10f, groundLayer))
             {
-                return hit.point + Vector3.up * 0.5f;
+                return hit.point + Vector3.up * 2f;
             }
         }
 
-        return player.position + new Vector3(minSpawnDistance, 0, 0);
+        return player.position + new Vector3(minSpawnDistance, 2f, 0);
     }
 
     public void OnEnemyKilled()
